@@ -46,7 +46,6 @@
   canvas{max-width:100%;}
   #trendChart{height:150px !important;}
   #varianceChart{height:150px !important;}
-  #categoryDonut{height:440px !important;}
   .chart-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
   .chart-col{min-width:0;}
   .chart-title{font-size:12px;margin:0 0 8px;color:var(--ink-soft);font-weight:700;}
@@ -54,15 +53,12 @@
     .chart-pair{grid-template-columns:1fr;gap:20px;}
   }
 
-  .hero-grid{display:grid;grid-template-columns:440px 280px;gap:16px;align-items:center;justify-content:center;}
-  @media (max-width:900px){ .hero-grid{grid-template-columns:1fr;justify-content:stretch;} }
-  .cat-legend{display:flex;flex-direction:column;gap:2px;max-width:280px;}
-  .cat-row{display:grid;grid-template-columns:8px 1fr auto auto;gap:6px;align-items:center;font-size:10px;padding:2px 0;border-bottom:1px solid var(--line);}
-  .cat-row:last-child{border-bottom:none;}
-  .cat-dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
-  .cat-name{font-weight:600;}
-  .cat-val{color:var(--red);font-weight:700;text-align:right;}
-  .cat-pct{color:var(--ink-soft);font-size:9.5px;text-align:right;min-width:32px;}
+  .two-col-panels{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin-top:14px;}
+  .subpanel{min-width:0;}
+  @media (max-width:760px){
+    .two-col-panels{grid-template-columns:1fr;}
+  }
+
 
   .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
   select{
@@ -137,27 +133,71 @@
 
   <div id="loadingOverlay">กำลังโหลดข้อมูลล่าสุดจาก Google Sheet...</div>
 
-  <!-- SECTION 0: SIGNATURE — CATEGORY BREAKDOWN -->
-  <div class="panel" id="categoryPanel" style="display:none;">
-    <h2><span class="num">0</span> ของหายแยกตามหมวดเครื่องดื่ม — เดือนล่าสุดที่ปิดแล้ว</h2>
-    <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">เดือนที่ดู:</span>
-      <select id="catMonthSelect"></select>
+  <!-- SECTION 1: OVERVIEW (moved to top) -->
+  <div class="panel">
+    <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
+    <div class="kpi-row" id="kpiRow"></div>
+    <div class="chart-pair">
+      <div class="chart-col">
+        <h3 class="chart-title">% ต้นทุนตามสต็อก vs ตามสูตร (POS)</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="chart-col">
+        <h3 class="chart-title">%Variance เทียบยอดขายเครื่องดื่ม</h3>
+        <canvas id="varianceChart"></canvas>
+      </div>
     </div>
-    <div class="hero-grid">
-      <canvas id="categoryDonut"></canvas>
-      <div class="cat-legend" id="catLegend"></div>
-    </div>
-    <div class="note" id="categoryNote"></div>
+    <div class="note" id="overviewNote"></div>
   </div>
 
-  <!-- SECTION 1 (was 3): ITEM LOST TRACKER -->
+  <!-- SECTION 2: STOCK-TAKING STATUS (side-by-side) -->
   <div class="panel">
-    <h2><span class="num">1</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
+    <h2><span class="num">2</span> สถานะการนับสต็อก — เดือนที่เลือก</h2>
     <div class="controls">
       <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
       <select id="monthSelect"></select>
-      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
+    </div>
+    <div class="two-col-panels">
+      <div class="subpanel">
+        <h3 class="chart-title">รายการที่ไม่มีการจดสต็อก</h3>
+        <div class="info-banner">ไม่มีข้อมูลทั้งต้นเดือน-1 และปลายเดือนเลยในเดือนนี้ — ตัวเลขของหายของรายการเหล่านี้ไม่น่าเชื่อถือ เพราะไม่ได้นับสต็อกจริง</div>
+        <div class="tbl-scroll">
+          <table id="noStockTable">
+            <thead>
+              <tr>
+                <th>เครื่องดื่ม</th>
+                <th>หมวด</th>
+              </tr>
+            </thead>
+            <tbody id="noStockBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="subpanel">
+        <h3 class="chart-title">รายการที่สต็อกดี (ของหายไม่เกิน ±5 หน่วย)</h3>
+        <div class="info-banner">มีข้อมูลต้นเดือน-1 และปลายเดือนครบ และของหายอยู่ในช่วง ±5 หน่วย — ถือว่านับสต็อกแม่นยำ ควบคุมได้ดี</div>
+        <div class="tbl-scroll">
+          <table id="goodStockTable">
+            <thead>
+              <tr>
+                <th>เครื่องดื่ม</th>
+                <th>หมวด</th>
+                <th>ปริมาณหาย (Lost)</th>
+                <th>มูลค่าหาย (บาท)</th>
+              </tr>
+            </thead>
+            <tbody id="goodStockBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ITEM LOST TRACKER (full table) -->
+  <div class="panel">
+    <h2><span class="num">3</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">หมวด:</span>
       <select id="catFilterLost"></select>
     </div>
     <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
@@ -185,26 +225,9 @@
     </div>
   </div>
 
-  <!-- SECTION 2 (was 1): OVERVIEW -->
+  <!-- SECTION 4: DRILL DOWN -->
   <div class="panel">
-    <h2><span class="num">2</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
-    <div class="kpi-row" id="kpiRow"></div>
-    <div class="chart-pair">
-      <div class="chart-col">
-        <h3 class="chart-title">% ต้นทุนตามสต็อก vs ตามสูตร (POS)</h3>
-        <canvas id="trendChart"></canvas>
-      </div>
-      <div class="chart-col">
-        <h3 class="chart-title">%Variance เทียบยอดขายเครื่องดื่ม</h3>
-        <canvas id="varianceChart"></canvas>
-      </div>
-    </div>
-    <div class="note" id="overviewNote"></div>
-  </div>
-
-  <!-- SECTION 3 (was 2): DRILL DOWN -->
-  <div class="panel">
-    <h2><span class="num">3</span> ไล่ดูสาเหตุ — เครื่องดื่มไหนทำให้ %ขยับ</h2>
+    <h2><span class="num">4</span> ไล่ดูสาเหตุ — เครื่องดื่มไหนทำให้ %ขยับ</h2>
     <div class="controls">
       <span class="muted" style="font-size:13px;font-weight:600;">เทียบช่วง:</span>
       <select id="pairSelect"></select>
@@ -322,7 +345,6 @@ function classifyDriver(row){
 
 let trendChartInstance = null;
 let varianceChartInstance = null;
-let categoryDonutInstance = null;
 
 function makePointLabelPlugin(opts){
   const fmtFn = opts && opts.format ? opts.format : (v => v.toFixed(1)+'%');
@@ -348,79 +370,6 @@ function makePointLabelPlugin(opts){
       });
     }
   };
-}
-
-// ---------- SECTION 0: หมวดเครื่องดื่ม ----------
-function renderCategoryMonthSelect(){
-  const data = B();
-  const sel = document.getElementById('catMonthSelect');
-  sel.innerHTML = '';
-  data.months.forEach(m=>{
-    const opt = document.createElement('option');
-    opt.value = m; opt.textContent = data.month_names[m];
-    sel.appendChild(opt);
-  });
-  sel.onchange = e => renderCategoryPanel(Number(e.target.value));
-  const lastClosed = data.months.length > 1 ? data.months[data.months.length-2] : data.months[data.months.length-1];
-  if(lastClosed === undefined){
-    document.getElementById('categoryPanel').style.display = 'none';
-    return;
-  }
-  document.getElementById('categoryPanel').style.display = 'block';
-  sel.value = lastClosed;
-  renderCategoryPanel(lastClosed);
-}
-
-function renderCategoryPanel(m){
-  const data = B();
-  const byCat = (data.category_summary_by_month && data.category_summary_by_month[m]) || {};
-  const order = categoryOrder();
-  const rows = order.map(c => ({cat:c, value: byCat[c] || 0})).filter(r => r.value !== 0 || true);
-  const total = rows.reduce((s,r)=>s+r.value, 0);
-
-  if(categoryDonutInstance) categoryDonutInstance.destroy();
-  const nonZero = rows.filter(r=>r.value > 0);
-  const chartRows = nonZero.length ? nonZero : rows;
-  categoryDonutInstance = new Chart(document.getElementById('categoryDonut'), {
-    type:'doughnut',
-    data:{
-      labels: chartRows.map(r=>r.cat),
-      datasets:[{
-        data: chartRows.map(r=>r.value),
-        backgroundColor: chartRows.map(r=>catColor(r.cat)),
-        borderColor:'#fff', borderWidth:2
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      cutout:'62%',
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{label:(c)=> c.label+': ฿'+fmt(c.parsed)}}
-      }
-    }
-  });
-
-  const legend = document.getElementById('catLegend');
-  legend.innerHTML = rows.map(r=>{
-    const pct = total>0 ? (r.value/total*100) : 0;
-    return `<div class="cat-row">
-      <span class="cat-dot" style="background:${catColor(r.cat)}"></span>
-      <span class="cat-name">${r.cat}</span>
-      <span class="cat-val">฿${fmt(r.value)}</span>
-      <span class="cat-pct">${pct.toFixed(0)}%</span>
-    </div>`;
-  }).join('');
-
-  const top = rows.slice().sort((a,b)=>b.value-a.value)[0];
-  document.getElementById('categoryNote').innerHTML = top && top.value > 0
-    ? `เดือนนี้มูลค่าของหายมาจากหมวด <b>${top.cat}</b> มากที่สุด (฿${fmt(top.value)}, ${total>0?(top.value/total*100).toFixed(0):0}% ของของหายทั้งหมด) — ${
-        top.cat === 'เบียร์สด' ? 'ของหายจากเบียร์สดมักมาจาก keg ที่ตั้งฟองมาก/รั่วซึม หรือลืมปิดวาล์ว ควรเช็คเครื่องและ %Yield ของแต่ละก๊อก' :
-        top.cat === 'สุรา/สปิริต' ? 'ของหายจากสุรามักมาจาก free-pour ไม่ใช้จิ๊กเกอร์ หรือเทเผื่อมือ ลองเช็ค SOP การตวง' :
-        top.cat === 'ไวน์' ? 'ของหายจากไวน์มักมาจากขวดเปิดแล้วเหลือ/หกระหว่างเสิร์ฟ ลองเช็คการเก็บขวดเปิดและ portion control' :
-        'ลองเจาะดูรายการในหมวดนี้ที่ตารางสาเหตุ (ส่วนที่ 2) และตารางของหาย (ส่วนที่ 3) ด้านล่าง'
-      }`
-    : `เดือนนี้ยังไม่มีของหายที่นับเป็นมูลค่าบวกในหมวดใดเลย`;
 }
 
 // ---------- SECTION 1: ภาพรวม ----------
@@ -697,6 +646,43 @@ function renderLostTable(m){
   });
 }
 
+function renderNoStockTable(m){
+  const data = B();
+  const rows = data.item_table
+    .filter(r => r['nostock_'+m])
+    .map(r => ({ item: r.item, category: r.category }))
+    .sort((a,b) => a.item.localeCompare(b.item));
+
+  const tbody = document.getElementById('noStockBody');
+  tbody.innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${r.item}</td>
+      <td>${catBadge(r.category)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="2" class="muted">เดือนนี้ไม่มีรายการที่ขาดข้อมูลทั้งต้นเดือน-1 และปลายเดือน</td></tr>`;
+}
+
+function renderGoodStockTable(m){
+  const data = B();
+  const rows = data.item_table
+    .filter(r => r['good_'+m])
+    .map(r => ({
+      item: r.item, category: r.category,
+      lostqty: r['lostqty_'+m], lostvalue: r['lostvalue_'+m]
+    }))
+    .sort((a,b) => Math.abs(b.lostqty) - Math.abs(a.lostqty));
+
+  const tbody = document.getElementById('goodStockBody');
+  tbody.innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${r.item}</td>
+      <td>${catBadge(r.category)}</td>
+      <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
+      <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="4" class="muted">เดือนนี้ไม่มีรายการที่เข้าเกณฑ์สต็อกดี</td></tr>`;
+}
+
 function renderMonthSelect(){
   const data = B();
   const monthSelect = document.getElementById('monthSelect');
@@ -706,17 +692,24 @@ function renderMonthSelect(){
     opt.value = m; opt.textContent = data.month_names[m];
     monthSelect.appendChild(opt);
   });
-  monthSelect.onchange = e=>renderLostTable(Number(e.target.value));
+  monthSelect.onchange = e=>{
+    const m = Number(e.target.value);
+    renderLostTable(m);
+    renderNoStockTable(m);
+    renderGoodStockTable(m);
+  };
   renderCatFilterOptions('catFilterLost');
   document.getElementById('catFilterLost').onchange = () => renderLostTable(Number(monthSelect.value));
   const lastMonth = data.months[data.months.length-2] || data.months[data.months.length-1];
   monthSelect.value = lastMonth;
   renderLostTable(lastMonth);
+  renderNoStockTable(lastMonth);
+  renderGoodStockTable(lastMonth);
 }
 
 function renderAll(){
-  renderCategoryMonthSelect();
   renderOverview();
+  renderMonthSelect();
   renderPairSelect();
   renderMonthSelect();
 }
