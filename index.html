@@ -118,6 +118,10 @@
   <!-- SECTION 1: OVERVIEW -->
   <div class="panel">
     <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเทียบยอดขาย</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+      <select id="kpiMonthSelect"></select>
+    </div>
     <div class="kpi-row" id="kpiRow"></div>
     <div class="chart-pair">
       <div class="chart-col">
@@ -290,39 +294,52 @@ function renderOverview(){
   const ms = data.monthly_summary;
   const monthNames = data.month_names;
   const kpiRow = document.getElementById('kpiRow');
+  const kpiMonthSelect = document.getElementById('kpiMonthSelect');
 
   const lastMonthIdx = ms.length - 2 >= 0 ? ms.length - 2 : ms.length - 1;
-  const latestClosed = ms[lastMonthIdx];
-  const prevClosed = lastMonthIdx > 0 ? ms[lastMonthIdx - 1] : latestClosed;
   const latestRaw = ms[ms.length-1];
   const latestIsOpen = ms.length > 1;
 
-  if(!latestClosed){
-    kpiRow.innerHTML = `<div class="kpi" style="grid-column:1/-1;"><div class="label">ไม่มีเดือนที่ข้อมูลครบพอจะคำนวณได้</div><div class="value muted">—</div></div>`;
-  } else {
+  function renderKpiCards(idx){
+    const sel = ms[idx];
+    const prev = idx > 0 ? ms[idx-1] : sel;
+    if(!sel){
+      kpiRow.innerHTML = `<div class="kpi" style="grid-column:1/-1;"><div class="label">ไม่มีเดือนที่ข้อมูลครบพอจะคำนวณได้</div><div class="value muted">—</div></div>`;
+      return;
+    }
     kpiRow.innerHTML = `
     <div class="kpi">
-      <div class="label">% ต้นทุนตามสต็อก (เดือนล่าสุดที่ปิดแล้ว)</div>
-      <div class="value">${fmtPct(latestClosed.stock_pct)}</div>
-      <div class="sub">${monthNames[latestClosed.Month]}</div>
+      <div class="label">% ต้นทุนตามสต็อก</div>
+      <div class="value">${fmtPct(sel.stock_pct)}</div>
+      <div class="sub">${monthNames[sel.Month]}</div>
     </div>
     <div class="kpi amber">
       <div class="label">% ต้นทุนตามสูตร</div>
-      <div class="value">${fmtPct(latestClosed.formula_pct)}</div>
-      <div class="sub">${monthNames[latestClosed.Month]}</div>
+      <div class="value">${fmtPct(sel.formula_pct)}</div>
+      <div class="sub">${monthNames[sel.Month]}</div>
     </div>
     <div class="kpi">
       <div class="label">ส่วนต่าง (pp เสียไป)</div>
-      <div class="value">${fmt(latestClosed.pp_gap,2)} pp</div>
-      <div class="sub">เดือนก่อน ${fmt(prevClosed.pp_gap,2)} pp</div>
+      <div class="value">${fmt(sel.pp_gap,2)} pp</div>
+      <div class="sub">เดือนก่อน ${fmt(prev.pp_gap,2)} pp</div>
     </div>
     <div class="kpi amber">
       <div class="label">มูลค่าของหาย (Lost)</div>
-      <div class="value">฿${fmt(latestClosed.lost_value)}</div>
-      <div class="sub">${monthNames[latestClosed.Month]}</div>
+      <div class="value">฿${fmt(sel.lost_value)}</div>
+      <div class="sub">${monthNames[sel.Month]}</div>
     </div>
   `;
   }
+
+  kpiMonthSelect.innerHTML = '';
+  ms.forEach((r, i)=>{
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = monthNames[r.Month];
+    kpiMonthSelect.appendChild(opt);
+  });
+  kpiMonthSelect.value = lastMonthIdx;
+  kpiMonthSelect.onchange = e => renderKpiCards(Number(e.target.value));
+  renderKpiCards(lastMonthIdx);
 
   if(trendChartInstance) trendChartInstance.destroy();
   trendChartInstance = new Chart(document.getElementById('trendChart'), {
