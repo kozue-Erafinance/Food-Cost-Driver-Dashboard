@@ -246,13 +246,6 @@ function fmtPct(n){ return n===null||n===undefined||isNaN(n) ? '—' : fmt(n,2) 
 function signClass(n){ return n>0 ? 'pos' : (n<0 ? 'neg':'muted'); }
 function signed(n,d=0){ const s = n>0?'+':''; return s+fmt(n,d); }
 
-const pairLabelsMap = {
-  '1-2':'มกราคม → กุมภาพันธ์',
-  '2-3':'กุมภาพันธ์ → มีนาคม',
-  '3-4':'มีนาคม → เมษายน',
-  '4-5':'เมษายน → พฤษภาคม'
-};
-
 function classifyDriver(row){
   const ap = Math.abs(row.price_effect), aq = Math.abs(row.qty_effect);
   if(ap < 50 && aq < 50) return {label:'แทบไม่เปลี่ยน', cls:'flat'};
@@ -460,8 +453,11 @@ function renderPairSelect(){
   const pairSelect = document.getElementById('pairSelect');
   pairSelect.innerHTML = '';
   Object.keys(data.decomp_by_pair).forEach(k=>{
+    const [m1, m2] = k.split('-');
+    const n1 = (data.month_names[m1] || '').replace(' (ยังไม่ปิดเดือน)', '');
+    const n2 = (data.month_names[m2] || '').replace(' (ยังไม่ปิดเดือน)', '');
     const opt = document.createElement('option');
-    opt.value = k; opt.textContent = pairLabelsMap[k] || k;
+    opt.value = k; opt.textContent = (n1 && n2) ? `${n1} → ${n2}` : k;
     pairSelect.appendChild(opt);
   });
   pairSelect.onchange = e => renderPair(e.target.value);
