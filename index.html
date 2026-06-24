@@ -78,7 +78,10 @@
 
   .anomaly-banner{font-size:12.5px;color:var(--red);background:var(--red-pale);border:1px solid var(--red);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
   .anomaly-banner b{font-weight:800;}
+  .info-banner{font-size:12.5px;color:var(--ink-soft);background:#EFEAE4;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
+  .info-banner b{font-weight:800;color:var(--ink);}
   tr.flagged{background:var(--red-pale);}
+  tr.incomplete-row{background:#EFEAE4;color:var(--ink-soft);}
   .flag-icon{margin-right:4px;cursor:help;}
   .footer-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:30px;}
 
@@ -137,6 +140,7 @@
       <select id="pairSelect"></select>
     </div>
     <div class="kpi-row" id="pairKpiRow" style="grid-template-columns:repeat(3,1fr);"></div>
+    <div id="pairWarning" class="info-banner" style="display:none;"></div>
     <div class="tbl-scroll">
       <table id="driverTable">
         <thead>
@@ -387,9 +391,11 @@ function renderOverview(){
 function renderPair(pairKey){
   const data = B();
   const rows = data.decomp_by_pair[pairKey].slice().sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
-  const totalDelta = rows.reduce((s,r)=>s+r.delta_cost,0);
-  const totalPriceEffect = rows.reduce((s,r)=>s+r.price_effect,0);
-  const totalQtyEffect = rows.reduce((s,r)=>s+r.qty_effect,0);
+  const completeRows = rows.filter(r=>!r.incomplete);
+  const incompleteCount = rows.length - completeRows.length;
+  const totalDelta = completeRows.reduce((s,r)=>s+r.delta_cost,0);
+  const totalPriceEffect = completeRows.reduce((s,r)=>s+r.price_effect,0);
+  const totalQtyEffect = completeRows.reduce((s,r)=>s+r.qty_effect,0);
 
   const pairKpi = document.getElementById('pairKpiRow');
   pairKpi.innerHTML = `
@@ -407,13 +413,22 @@ function renderPair(pairKey){
     </div>
   `;
 
+  const pairWarning = document.getElementById('pairWarning');
+  if(incompleteCount > 0){
+    pairWarning.style.display = 'block';
+    pairWarning.innerHTML = `ℹ️ มี <b>${incompleteCount} รายการ</b> ที่ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนใดเดือนหนึ่งของคู่นี้ — ตัวเลขแถวที่มีไอคอน ℹ️ ด้านล่างอาจไม่แม่นยำ และไม่ถูกรวมในยอดด้านบน`;
+  } else {
+    pairWarning.style.display = 'none';
+  }
+
   const tbody = document.getElementById('driverBody');
   tbody.innerHTML = '';
   rows.forEach(r=>{
     const driver = classifyDriver(r);
     const tr = document.createElement('tr');
+    if(r.incomplete) tr.className = 'incomplete-row';
     tr.innerHTML = `
-      <td>${r.item}</td>
+      <td>${r.incomplete ? '<span class="flag-icon" title="ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนใดเดือนหนึ่ง — ตัวเลขนี้อาจไม่แม่นยำ">ℹ️</span>' : ''}${r.item}</td>
       <td>${fmt(r.price_prev)}</td>
       <td>${fmt(r.price_now)}</td>
       <td class="${signClass(r.price_change)}">${signed(r.price_change)}</td>
@@ -470,15 +485,25 @@ function renderLostTable(m){
     lostvalue: r['lostvalue_'+m],
     stockcost: r['stockcost_'+m],
     formulacost: r['formulacost_'+m],
-    pctvar: r['pctvar_'+m]
-  })).map(r=>({...r, anomalous: isAnomalous(r.stockcost, r.formulacost)}))
+    pctvar: r['pctvar_'+m],
+    incomplete: r['incomplete_'+m]
+  })).map(r=>({...r, anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost)}))
     .sort((a,b)=> (b.lostvalue||0) - (a.lostvalue||0));
 
   const flaggedItems = rows.filter(r=>r.anomalous);
+  const incompleteItems = rows.filter(r=>r.incomplete);
   const banner = document.getElementById('anomalyBanner');
+  let bannerHtml = '';
   if(flaggedItems.length){
+    bannerHtml += `⚠️ พบ <b>${flaggedItems.length} รายการ</b> ที่ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ${flaggedItems.map(r=>r.item).join(', ')}<br>ลองเช็คการนับสต็อกหรือการคีย์ข้อมูล (ต้นเดือน/ซื้อเข้า/ปลายเดือน) ของรายการเหล่านี้อีกครั้ง`;
+  }
+  if(incompleteItems.length){
+    if(bannerHtml) bannerHtml += '<br><br>';
+    bannerHtml += `ℹ️ พบ <b>${incompleteItems.length} รายการ</b> ที่ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนนี้ ไม่สามารถคำนวณต้นทุนตามสต็อกได้ — ${incompleteItems.map(r=>r.item).join(', ')}<br>กรุณากรอกข้อมูลให้ครบเพื่อให้คำนวณได้ถูกต้อง`;
+  }
+  if(bannerHtml){
     banner.style.display = 'block';
-    banner.innerHTML = `⚠️ พบ <b>${flaggedItems.length} รายการ</b> ที่ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ${flaggedItems.map(r=>r.item).join(', ')}<br>ลองเช็คการนับสต็อกหรือการคีย์ข้อมูล (ต้นเดือน/ซื้อเข้า/ปลายเดือน) ของรายการเหล่านี้อีกครั้ง`;
+    banner.innerHTML = bannerHtml;
   } else {
     banner.style.display = 'none';
   }
@@ -487,15 +512,19 @@ function renderLostTable(m){
   tbody.innerHTML = '';
   rows.forEach(r=>{
     const tr = document.createElement('tr');
-    if(r.anomalous) tr.className = 'flagged';
+    if(r.incomplete) tr.className = 'incomplete-row';
+    else if(r.anomalous) tr.className = 'flagged';
+    const icon = r.incomplete
+      ? '<span class="flag-icon" title="ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost — คำนวณไม่ได้">ℹ️</span>'
+      : (r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : '');
     tr.innerHTML = `
-      <td>${r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : ''}${r.item}</td>
+      <td>${icon}${r.item}</td>
       <td>${fmt(r.price)}</td>
-      <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
+      <td class="${signClass(r.lostqty)}">${r.incomplete ? '—' : signed(r.lostqty,1)}</td>
       <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
       <td>${fmt(r.stockcost)}</td>
       <td>${fmt(r.formulacost)}</td>
-      <td class="${signClass(r.pctvar)}">${signed(r.pctvar,2)}</td>
+      <td class="${signClass(r.pctvar)}">${r.pctvar===null ? '—' : signed(r.pctvar,2)}</td>
     `;
     tbody.appendChild(tr);
   });
