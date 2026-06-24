@@ -242,7 +242,7 @@ function fmt(n, d=0){
   if(n===null || n===undefined || isNaN(n)) return '—';
   return Number(n).toLocaleString('th-TH', {minimumFractionDigits:d, maximumFractionDigits:d});
 }
-function fmtPct(n){ return fmt(n,2) + '%'; }
+function fmtPct(n){ return n===null||n===undefined||isNaN(n) ? '—' : fmt(n,2) + '%'; }
 function signClass(n){ return n>0 ? 'pos' : (n<0 ? 'neg':'muted'); }
 function signed(n,d=0){ const s = n>0?'+':''; return s+fmt(n,d); }
 
@@ -298,13 +298,18 @@ function renderOverview(){
   const monthNames = data.month_names;
   const kpiRow = document.getElementById('kpiRow');
 
-  const closedMs = ms.filter(r => r.Month <= 5);
-  const latestClosed = closedMs[closedMs.length-1];
-  const prevClosed = closedMs.length>1 ? closedMs[closedMs.length-2] : latestClosed;
+  const lastMonthIdx = ms.length - 2 >= 0 ? ms.length - 2 : ms.length - 1;
+  const latestClosed = ms[lastMonthIdx];
+  const prevClosed = lastMonthIdx > 0 ? ms[lastMonthIdx - 1] : latestClosed;
+  const latestRaw = ms[ms.length-1];
+  const latestIsOpen = ms.length > 1;
 
-  kpiRow.innerHTML = `
+  if(!latestClosed){
+    kpiRow.innerHTML = `<div class="kpi" style="grid-column:1/-1;"><div class="label">ไม่มีเดือนที่ข้อมูลครบพอจะคำนวณได้</div><div class="value muted">—</div></div>`;
+  } else {
+    kpiRow.innerHTML = `
     <div class="kpi">
-      <div class="label">% ต้นทุนตามสต็อก (เดือนล้าสุดที่ปิดแล้ว)</div>
+      <div class="label">% ต้นทุนตามสต็อก (เดือนล่าสุดที่ปิดแล้ว)</div>
       <div class="value">${fmtPct(latestClosed.stock_pct)}</div>
       <div class="sub">${monthNames[latestClosed.Month]}</div>
     </div>
@@ -324,6 +329,7 @@ function renderOverview(){
       <div class="sub">${monthNames[latestClosed.Month]}</div>
     </div>
   `;
+  }
 
   if(trendChartInstance) trendChartInstance.destroy();
   trendChartInstance = new Chart(document.getElementById('trendChart'), {
@@ -352,7 +358,7 @@ function renderOverview(){
 
   document.getElementById('overviewNote').innerHTML =
     `เส้น <b>ต้นทุนตามสต็อก</b> (ชอมพู) คือของที่หักออกจากสต็อกจริง ส่วน <b>ต้นทุนตามสูตร</b> (ส้ม) คือของที่สูตรเมนูบอกว่าควรใช้ — ช่องว่างระหว่างสองเส้นคือของที่ "หายเกินสูตร" ทุกเดือน<br>
-     เดือนล่าสุดซึ่งอยู่่ในช่องข้อมูล อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือน) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ`;
+     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ`;
   if(varianceChartInstance) varianceChartInstance.destroy();
   varianceChartInstance = new Chart(document.getElementById('varianceChart'), {
     type:'line',
@@ -391,11 +397,10 @@ function renderOverview(){
 function renderPair(pairKey){
   const data = B();
   const rows = data.decomp_by_pair[pairKey].slice().sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
-  const completeRows = rows.filter(r=>!r.incomplete);
-  const incompleteCount = rows.length - completeRows.length;
-  const totalDelta = completeRows.reduce((s,r)=>s+r.delta_cost,0);
-  const totalPriceEffect = completeRows.reduce((s,r)=>s+r.price_effect,0);
-  const totalQtyEffect = completeRows.reduce((s,r)=>s+r.qty_effect,0);
+  const incompleteCount = rows.filter(r=>r.incomplete).length;
+  const totalDelta = rows.reduce((s,r)=>s+r.delta_cost,0);
+  const totalPriceEffect = rows.reduce((s,r)=>s+r.price_effect,0);
+  const totalQtyEffect = rows.reduce((s,r)=>s+r.qty_effect,0);
 
   const pairKpi = document.getElementById('pairKpiRow');
   pairKpi.innerHTML = `
@@ -416,7 +421,7 @@ function renderPair(pairKey){
   const pairWarning = document.getElementById('pairWarning');
   if(incompleteCount > 0){
     pairWarning.style.display = 'block';
-    pairWarning.innerHTML = `ℹ️ มี <b>${incompleteCount} รายการ</b> ที่ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนใดเดือนหนึ่งของคู่นี้ — ตัวเลขแถวที่มีไอคอน ℹ️ ด้านล่างอาจไม่แม่นยำ และไม่ถูกรวมในยอดด้านบน`;
+    pairWarning.innerHTML = `ℹ️ มี <b>${incompleteCount} รายการ</b> ที่มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่งของคู่นี้ (นับเป็น 0 ในการคำนวณ) — ลองเช็คว่าตั้งใจปล่อยว่างหรือลืมกรอก ตัวเลขด้านล่างยังถูกรวมในยอดตามปกติ`;
   } else {
     pairWarning.style.display = 'none';
   }
@@ -428,7 +433,7 @@ function renderPair(pairKey){
     const tr = document.createElement('tr');
     if(r.incomplete) tr.className = 'incomplete-row';
     tr.innerHTML = `
-      <td>${r.incomplete ? '<span class="flag-icon" title="ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนใดเดือนหนึ่ง — ตัวเลขนี้อาจไม่แม่นยำ">ℹ️</span>' : ''}${r.item}</td>
+      <td>${r.incomplete ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่ง (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>' : ''}${r.item}</td>
       <td>${fmt(r.price_prev)}</td>
       <td>${fmt(r.price_now)}</td>
       <td class="${signClass(r.price_change)}">${signed(r.price_change)}</td>
@@ -499,7 +504,7 @@ function renderLostTable(m){
   }
   if(incompleteItems.length){
     if(bannerHtml) bannerHtml += '<br><br>';
-    bannerHtml += `ℹ️ พบ <b>${incompleteItems.length} รายการ</b> ที่ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost ในเดือนนี้ ไม่สามารถคำนวณต้นทุนตามสต็อกได้ — ${incompleteItems.map(r=>r.item).join(', ')}<br>กรุณากรอกข้อมูลให้ครบเพื่อให้คำนวณได้ถูกต้อง`;
+    bannerHtml += `ℹ️ พบ <b>${incompleteItems.length} รายการ</b> ที่มีช่องว่างต้นเดือน/ปลายเดือนในเดือนนี้ (นับเป็น 0 ในการคำนวณตามปกติ) — ${incompleteItems.map(r=>r.item).join(', ')}<br>ลองเช็คว่าตั้งใจปล่อยว่างหรือลืมกรอก`;
   }
   if(bannerHtml){
     banner.style.display = 'block';
@@ -515,16 +520,16 @@ function renderLostTable(m){
     if(r.incomplete) tr.className = 'incomplete-row';
     else if(r.anomalous) tr.className = 'flagged';
     const icon = r.incomplete
-      ? '<span class="flag-icon" title="ขาดข้อมูลต้นเดือน/ปลายเดือน/Lost — คำนวณไม่ได้">ℹ️</span>'
+      ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือน (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>'
       : (r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : '');
     tr.innerHTML = `
       <td>${icon}${r.item}</td>
       <td>${fmt(r.price)}</td>
-      <td class="${signClass(r.lostqty)}">${r.incomplete ? '—' : signed(r.lostqty,1)}</td>
+      <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
       <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
       <td>${fmt(r.stockcost)}</td>
       <td>${fmt(r.formulacost)}</td>
-      <td class="${signClass(r.pctvar)}">${r.pctvar===null ? '—' : signed(r.pctvar,2)}</td>
+      <td class="${signClass(r.pctvar)}">${signed(r.pctvar,2)}</td>
     `;
     tbody.appendChild(tr);
   });
