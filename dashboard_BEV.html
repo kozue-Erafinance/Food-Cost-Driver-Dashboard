@@ -46,7 +46,7 @@
   canvas{max-width:100%;}
   #trendChart{height:150px !important;}
   #varianceChart{height:150px !important;}
-  #categoryDonut{height:230px !important;}
+  #categoryDonut{height:440px !important;}
   .chart-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
   .chart-col{min-width:0;}
   .chart-title{font-size:12px;margin:0 0 8px;color:var(--ink-soft);font-weight:700;}
@@ -54,15 +54,15 @@
     .chart-pair{grid-template-columns:1fr;gap:20px;}
   }
 
-  .hero-grid{display:grid;grid-template-columns:230px 1fr;gap:24px;align-items:center;}
-  @media (max-width:760px){ .hero-grid{grid-template-columns:1fr;} }
-  .cat-legend{display:flex;flex-direction:column;gap:8px;}
-  .cat-row{display:grid;grid-template-columns:12px 1fr auto auto;gap:9px;align-items:center;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);}
+  .hero-grid{display:grid;grid-template-columns:440px 280px;gap:16px;align-items:center;justify-content:center;}
+  @media (max-width:900px){ .hero-grid{grid-template-columns:1fr;justify-content:stretch;} }
+  .cat-legend{display:flex;flex-direction:column;gap:2px;max-width:280px;}
+  .cat-row{display:grid;grid-template-columns:8px 1fr auto auto;gap:6px;align-items:center;font-size:10px;padding:2px 0;border-bottom:1px solid var(--line);}
   .cat-row:last-child{border-bottom:none;}
-  .cat-dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
-  .cat-name{font-weight:700;}
+  .cat-dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+  .cat-name{font-weight:600;}
   .cat-val{color:var(--red);font-weight:700;text-align:right;}
-  .cat-pct{color:var(--ink-soft);font-size:11px;text-align:right;min-width:42px;}
+  .cat-pct{color:var(--ink-soft);font-size:9.5px;text-align:right;min-width:32px;}
 
   .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
   select{
@@ -86,6 +86,11 @@
 
   .cat-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--ink-soft);}
   .cat-badge .dot{width:8px;height:8px;border-radius:2px;}
+
+  .status-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+  .status-badge.nostock{background:#EDEFEF;color:var(--ink-soft);}
+  .status-badge.good{background:var(--green-pale);color:var(--green);}
+  .status-badge.normal{color:var(--ink-soft);font-size:11px;}
 
   .pos{color:var(--red);font-weight:700;}
   .neg{color:var(--green);font-weight:700;}
@@ -146,9 +151,43 @@
     <div class="note" id="categoryNote"></div>
   </div>
 
-  <!-- SECTION 1: OVERVIEW -->
+  <!-- SECTION 1 (was 3): ITEM LOST TRACKER -->
   <div class="panel">
-    <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
+    <h2><span class="num">1</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+      <select id="monthSelect"></select>
+      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
+      <select id="catFilterLost"></select>
+    </div>
+    <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
+    <div class="legend-mini" style="margin-bottom:10px;">
+      <span><span class="status-badge nostock">ไม่มีการจดสต็อก</span> = ไม่มีข้อมูลต้นเดือน-1 และปลายเดือนทั้งคู่</span>
+      <span><span class="status-badge good">ดี</span> = มีข้อมูลครบ และของหายไม่เกิน ±5 หน่วย</span>
+    </div>
+    <div class="tbl-scroll">
+      <table id="lostTable">
+        <thead>
+          <tr>
+            <th>เครื่องดื่ม</th>
+            <th>หมวด</th>
+            <th>สถานะการจดสต็อก</th>
+            <th>ราคา/หน่วย</th>
+            <th>ปริมาณหาย (Lost)</th>
+            <th>มูลค่าหาย (บาท)</th>
+            <th>ต้นทุนตามสต็อก</th>
+            <th>ต้นทุนตามสูตร (POS)</th>
+            <th>%var (pp)</th>
+          </tr>
+        </thead>
+        <tbody id="lostBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 2 (was 1): OVERVIEW -->
+  <div class="panel">
+    <h2><span class="num">2</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
     <div class="kpi-row" id="kpiRow"></div>
     <div class="chart-pair">
       <div class="chart-col">
@@ -163,9 +202,9 @@
     <div class="note" id="overviewNote"></div>
   </div>
 
-  <!-- SECTION 2: DRILL DOWN -->
+  <!-- SECTION 3 (was 2): DRILL DOWN -->
   <div class="panel">
-    <h2><span class="num">2</span> ไล่ดูสาเหตุ — เครื่องดื่มไหนทำให้ %ขยับ</h2>
+    <h2><span class="num">3</span> ไล่ดูสาเหตุ — เครื่องดื่มไหนทำให้ %ขยับ</h2>
     <div class="controls">
       <span class="muted" style="font-size:13px;font-weight:600;">เทียบช่วง:</span>
       <select id="pairSelect"></select>
@@ -195,35 +234,6 @@
       </table>
     </div>
     <div class="note" id="insightNote"></div>
-  </div>
-
-  <!-- SECTION 3: ITEM LOST TRACKER -->
-  <div class="panel">
-    <h2><span class="num">3</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
-    <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
-      <select id="monthSelect"></select>
-      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
-      <select id="catFilterLost"></select>
-    </div>
-    <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
-    <div class="tbl-scroll">
-      <table id="lostTable">
-        <thead>
-          <tr>
-            <th>เครื่องดื่ม</th>
-            <th>หมวด</th>
-            <th>ราคา/หน่วย</th>
-            <th>ปริมาณหาย (Lost)</th>
-            <th>มูลค่าหาย (บาท)</th>
-            <th>ต้นทุนตามสต็อก</th>
-            <th>ต้นทุนตามสูตร (POS)</th>
-            <th>%var (pp)</th>
-          </tr>
-        </thead>
-        <tbody id="lostBody"></tbody>
-      </table>
-    </div>
   </div>
 
   <p class="footer-note">คำนวณจากข้อมูลระดับรายเครื่องดื่ม — มูลค่า = ปริมาณ × ราคา/หน่วยในรายงาน<br>%var (pp) = (ต้นทุนตามสต็อก − ต้นทุนตามสูตร) ÷ ยอดขายเครื่องดื่มรวมทั้งเดือน × 100 — รวมทุกเครื่องดื่มในเดือนนั้นจะเท่ากับ %Variance รวมของกราฟด้านบนเป๊ะ<br>หมวดเครื่องดื่มจัดอัตโนมัติจากชื่อรายการ (เบียร์สด/เบียร์ขวด-กระป๋อง/ไวน์/สุรา-สปิริต/โซจู/สาโทคราฟต์/น้ำอัดลม-น้ำดื่ม/อื่นๆ) — ถ้าจัดหมวดผิดสามารถแก้ไขฟังก์ชัน categorize_ ใน Apps Script ได้</p>
@@ -615,6 +625,12 @@ function isAnomalous(stockcost, formulacost){
   return ratio > 2 || ratio < 0.5;
 }
 
+function statusBadge(r){
+  if(r.nostock) return '<span class="status-badge nostock">ไม่มีการจดสต็อก</span>';
+  if(r.good) return '<span class="status-badge good">ดี</span>';
+  return '<span class="status-badge normal">—</span>';
+}
+
 function renderLostTable(m){
   const data = B();
   const catFilter = document.getElementById('catFilterLost').value || 'ALL';
@@ -626,7 +642,9 @@ function renderLostTable(m){
     stockcost: r['stockcost_'+m],
     formulacost: r['formulacost_'+m],
     pctvar: r['pctvar_'+m],
-    incomplete: r['incomplete_'+m]
+    incomplete: r['incomplete_'+m],
+    nostock: r['nostock_'+m],
+    good: r['good_'+m]
   })).map(r=>({...r, anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost)}));
 
   if(catFilter !== 'ALL') rows = rows.filter(r=>r.category === catFilter);
@@ -634,10 +652,15 @@ function renderLostTable(m){
 
   const flaggedItems = rows.filter(r=>r.anomalous);
   const incompleteItems = rows.filter(r=>r.incomplete);
+  const noStockItems = rows.filter(r=>r.nostock);
   const banner = document.getElementById('anomalyBanner');
   let bannerHtml = '';
   if(flaggedItems.length){
     bannerHtml += `⚠️ พบ <b>${flaggedItems.length} รายการ</b> ที่ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ${flaggedItems.map(r=>r.item).join(', ')}<br>ลองเช็คการนับสต็อกหรือการคีย์ข้อมูล (ต้นเดือน/ซื้อเข้า/ปลายเดือน) ของรายการเหล่านี้อีกครั้ง`;
+  }
+  if(noStockItems.length){
+    if(bannerHtml) bannerHtml += '<br><br>';
+    bannerHtml += `📋 พบ <b>${noStockItems.length} รายการ</b> ที่ไม่มีข้อมูลต้นเดือน-1 และปลายเดือนเลยในเดือนนี้ (ไม่ได้นับสต็อก) — ${noStockItems.map(r=>r.item).join(', ')}<br>ตัวเลขของหายของรายการเหล่านี้จึงไม่น่าเชื่อถือ ควรเริ่มนับสต็อกให้ครบ`;
   }
   if(incompleteItems.length){
     if(bannerHtml) bannerHtml += '<br><br>';
@@ -662,6 +685,7 @@ function renderLostTable(m){
     tr.innerHTML = `
       <td>${icon}${r.item}</td>
       <td>${catBadge(r.category)}</td>
+      <td>${statusBadge(r)}</td>
       <td>${fmt(r.price)}</td>
       <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
       <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
