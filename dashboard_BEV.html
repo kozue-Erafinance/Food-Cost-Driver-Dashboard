@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beverage Cost &amp; Loss Driver Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#F2F7F7; --panel:#FFFFFF; --ink:#10242A; --ink-soft:#56716F;
+    --teal:#0E7A82; --teal-soft:#7FC4C4; --teal-pale:#E1F2F1;
+    --amber:#B5651D; --amber-soft:#E8A256; --amber-pale:#FBEAD7;
+    --line:#DCE7E6; --green:#2F7A52; --green-pale:#E5F2E9; --red:#B23A3A; --red-pale:#FBE6E6;
+    --radius:12px;
+    /* หมวดเครื่องดื่ม — ใช้สีจากโลกของแก้ว/ขวดจริง ๆ ไม่ใช่สีสุ่ม */
+    --cat-draft:#C9881F; --cat-bottle:#E8B84B; --cat-wine:#7A2E43; --cat-spirit:#4F5D75;
+    --cat-soju:#4FB6BE; --cat-sato:#8E7A4F; --cat-soft:#3D8FB0; --cat-other:#9AA5A3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Noto Sans Thai','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1220px;margin:0 auto;padding:28px 20px 60px;}
+  header{margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+  header .eyebrow{font-size:12px;letter-spacing:.08em;color:var(--teal);font-weight:700;text-transform:uppercase;}
+  header h1{font-size:26px;margin:6px 0 4px;font-weight:800;}
+  header p{margin:0;color:var(--ink-soft);font-size:14px;max-width:560px;}
+
+  .branch-switch{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 8px;}
+  .branch-switch label{font-size:12px;color:var(--ink-soft);font-weight:700;}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;}
+  .panel h2{font-size:15px;margin:0 0 14px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .panel h2 .num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--teal);color:#fff;font-size:12px;font-weight:800;}
+  .panel h2 .num.amber{background:var(--amber);}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  .kpi{background:var(--teal-pale);border-radius:10px;padding:12px 14px;}
+  .kpi.amber{background:var(--amber-pale);}
+  .kpi .label{font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .kpi .value{font-size:20px;font-weight:800;}
+  .kpi .sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+
+  canvas{max-width:100%;}
+  #trendChart{height:150px !important;}
+  #varianceChart{height:150px !important;}
+  #categoryDonut{height:230px !important;}
+  .chart-pair{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+  .chart-col{min-width:0;}
+  .chart-title{font-size:12px;margin:0 0 8px;color:var(--ink-soft);font-weight:700;}
+  @media (max-width:700px){
+    .chart-pair{grid-template-columns:1fr;gap:20px;}
+  }
+
+  .hero-grid{display:grid;grid-template-columns:230px 1fr;gap:24px;align-items:center;}
+  @media (max-width:760px){ .hero-grid{grid-template-columns:1fr;} }
+  .cat-legend{display:flex;flex-direction:column;gap:8px;}
+  .cat-row{display:grid;grid-template-columns:12px 1fr auto auto;gap:9px;align-items:center;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);}
+  .cat-row:last-child{border-bottom:none;}
+  .cat-dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .cat-name{font-weight:700;}
+  .cat-val{color:var(--red);font-weight:700;text-align:right;}
+  .cat-pct{color:var(--ink-soft);font-size:11px;text-align:right;min-width:42px;}
+
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  select{
+    font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;
+  }
+  .legend-mini{display:flex;gap:14px;font-size:12px;color:var(--ink-soft);flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:inherit;}
+  th{font-weight:700;color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+  tbody tr:hover{background:#F3FAFA;}
+  .tbl-scroll{overflow-x:auto;border-radius:8px;}
+
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+  .tag.price{background:var(--red-pale);color:var(--red);}
+  .tag.qty{background:var(--amber-pale);color:var(--amber);}
+  .tag.both{background:var(--teal-pale);color:var(--teal);}
+  .tag.flat{background:#EDEFEF;color:var(--ink-soft);}
+
+  .cat-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--ink-soft);}
+  .cat-badge .dot{width:8px;height:8px;border-radius:2px;}
+
+  .pos{color:var(--red);font-weight:700;}
+  .neg{color:var(--green);font-weight:700;}
+  .muted{color:var(--ink-soft);}
+
+  .note{font-size:12px;color:var(--ink-soft);background:var(--amber-pale);border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.6;}
+
+  .anomaly-banner{font-size:12.5px;color:var(--red);background:var(--red-pale);border:1px solid var(--red);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
+  .anomaly-banner b{font-weight:800;}
+  .info-banner{font-size:12.5px;color:var(--ink-soft);background:#EDEFEF;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
+  .info-banner b{font-weight:800;color:var(--ink);}
+  tr.flagged{background:var(--red-pale);}
+  tr.incomplete-row{background:#EDEFEF;color:var(--ink-soft);}
+  .flag-icon{margin-right:4px;cursor:help;}
+  .footer-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:30px;}
+
+  @media (max-width:760px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    header{flex-direction:column;}
+    .wrap{padding:16px 12px 40px;}
+    .panel{padding:14px 14px 12px;}
+  }
+
+  #loadingOverlay{
+    display:flex; align-items:center; justify-content:center;
+    min-height:200px; font-size:14px; color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="eyebrow">Era Izaan</div>
+      <h1>Beverage Cost &amp; Loss Driver Dashboard</h1>
+      <p>ภาพรวมต้นทุนเครื่องดื่มต่อยอดขาย พร้อมไล่ดูว่าเครื่องดื่มตัวไหน — และ "หมวด" ไหน (เบียร์สด / สุรา / ไวน์ / น้ำอัดลม ฯลฯ) — คือสาเหตุที่ทำให้ของหายและ % ต้นทุนขยับขึ้น</p>
+    </div>
+    <div class="branch-switch">
+      <label for="branchSelect">สาขา</label>
+      <select id="branchSelect"></select>
+    </div>
+  </header>
+
+  <div id="loadingOverlay">กำลังโหลดข้อมูลล่าสุดจาก Google Sheet...</div>
+
+  <!-- SECTION 0: SIGNATURE — CATEGORY BREAKDOWN -->
+  <div class="panel" id="categoryPanel" style="display:none;">
+    <h2><span class="num">0</span> ของหายแยกตามหมวดเครื่องดื่ม — เดือนล่าสุดที่ปิดแล้ว</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือนที่ดู:</span>
+      <select id="catMonthSelect"></select>
+    </div>
+    <div class="hero-grid">
+      <canvas id="categoryDonut"></canvas>
+      <div class="cat-legend" id="catLegend"></div>
+    </div>
+    <div class="note" id="categoryNote"></div>
+  </div>
+
+  <!-- SECTION 1: OVERVIEW -->
+  <div class="panel">
+    <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
+    <div class="kpi-row" id="kpiRow"></div>
+    <div class="chart-pair">
+      <div class="chart-col">
+        <h3 class="chart-title">% ต้นทุนตามสต็อก vs ตามสูตร (POS)</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="chart-col">
+        <h3 class="chart-title">%Variance เทียบยอดขายเครื่องดื่ม</h3>
+        <canvas id="varianceChart"></canvas>
+      </div>
+    </div>
+    <div class="note" id="overviewNote"></div>
+  </div>
+
+  <!-- SECTION 2: DRILL DOWN -->
+  <div class="panel">
+    <h2><span class="num">2</span> ไล่ดูสาเหตุ — เครื่องดื่มไหนทำให้ %ขยับ</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เทียบช่วง:</span>
+      <select id="pairSelect"></select>
+      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
+      <select id="catFilterDriver"></select>
+    </div>
+    <div class="kpi-row" id="pairKpiRow" style="grid-template-columns:repeat(3,1fr);"></div>
+    <div id="pairWarning" class="info-banner" style="display:none;"></div>
+    <div class="tbl-scroll">
+      <table id="driverTable">
+        <thead>
+          <tr>
+            <th>เครื่องดื่ม</th>
+            <th>หมวด</th>
+            <th>ราคา/หน่วย (ก่อน)</th>
+            <th>ราคา/หน่วย (หลัง)</th>
+            <th>Δ ราคา</th>
+            <th>ปริมาณใช้ (ก่อน)</th>
+            <th>ปริมาณใช้ (หลัง)</th>
+            <th>Δ ต้นทุน (บาท)</th>
+            <th>ผลจากราคา</th>
+            <th>ผลจากปริมาณ</th>
+            <th>สาเหตุหลัก</th>
+          </tr>
+        </thead>
+        <tbody id="driverBody"></tbody>
+      </table>
+    </div>
+    <div class="note" id="insightNote"></div>
+  </div>
+
+  <!-- SECTION 3: ITEM LOST TRACKER -->
+  <div class="panel">
+    <h2><span class="num">3</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+      <select id="monthSelect"></select>
+      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
+      <select id="catFilterLost"></select>
+    </div>
+    <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
+    <div class="tbl-scroll">
+      <table id="lostTable">
+        <thead>
+          <tr>
+            <th>เครื่องดื่ม</th>
+            <th>หมวด</th>
+            <th>ราคา/หน่วย</th>
+            <th>ปริมาณหาย (Lost)</th>
+            <th>มูลค่าหาย (บาท)</th>
+            <th>ต้นทุนตามสต็อก</th>
+            <th>ต้นทุนตามสูตร (POS)</th>
+            <th>%var (pp)</th>
+          </tr>
+        </thead>
+        <tbody id="lostBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="footer-note">คำนวณจากข้อมูลระดับรายเครื่องดื่ม — มูลค่า = ปริมาณ × ราคา/หน่วยในรายงาน<br>%var (pp) = (ต้นทุนตามสต็อก − ต้นทุนตามสูตร) ÷ ยอดขายเครื่องดื่มรวมทั้งเดือน × 100 — รวมทุกเครื่องดื่มในเดือนนั้นจะเท่ากับ %Variance รวมของกราฟด้านบนเป๊ะ<br>หมวดเครื่องดื่มจัดอัตโนมัติจากชื่อรายการ (เบียร์สด/เบียร์ขวด-กระป๋อง/ไวน์/สุรา-สปิริต/โซจู/สาโทคราฟต์/น้ำอัดลม-น้ำดื่ม/อื่นๆ) — ถ้าจัดหมวดผิดสามารถแก้ไขฟังก์ชัน categorize_ ใน Apps Script ได้</p>
+</div>
+
+<script>
+// ==== แก้ไขตรงนี้: ใส่ URL ของ Apps Script Web App ที่ deploy ไว้ ====
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyh9ObP8gwUaGPfsXXVa-163orwFkjxshwYM-hgMb0WOxnWR8WM1r1Z5iiJUxmNMAE2/exec?kind=bev';
+
+const CATEGORY_COLORS = {
+  'เบียร์สด':'#C9881F', 'เบียร์ขวด/กระป๋อง':'#E8B84B', 'ไวน์':'#7A2E43',
+  'สุรา/สปิริต':'#4F5D75', 'โซจู':'#4FB6BE', 'สาโทคราฟต์':'#8E7A4F',
+  'น้ำอัดลม/น้ำดื่ม':'#3D8FB0', 'อื่นๆ':'#9AA5A3'
+};
+const CATEGORY_ORDER_FALLBACK = ['เบียร์สด','เบียร์ขวด/กระป๋อง','ไวน์','สุรา/สปิริต','โซจู','สาโทคราฟต์','น้ำอัดลม/น้ำดื่ม','อื่นๆ'];
+
+let DATA = null;
+
+async function loadData(){
+  const loadingEl = document.getElementById('loadingOverlay');
+  try{
+    const res = await fetch(APPS_SCRIPT_URL);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    DATA = await res.json();
+    if(loadingEl) loadingEl.remove();
+    initBranchSelector();
+    renderAll();
+  }catch(err){
+    if(loadingEl){
+      loadingEl.innerHTML = '<div style="text-align:center;color:#B23A3A;font-family:inherit;">'
+        + 'โหลดข้อมูลไม่สำเร็จ — ตรวจสอบว่า Web App URL ถูกต้องและ deploy แบบ \'Anyone\' แล้ว<br>'
+        + '<span style="font-size:12px;color:#56716F;">' + err.message + '</span></div>';
+    }
+    console.error(err);
+  }
+}
+
+function initBranchSelector(){
+  const branchSelect = document.getElementById('branchSelect');
+  branchSelect.innerHTML = '';
+  Object.keys(DATA.branches).forEach(key=>{
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = DATA.branch_labels[key] || key;
+    branchSelect.appendChild(opt);
+  });
+  currentBranch = Object.keys(DATA.branches)[0];
+  branchSelect.value = currentBranch;
+  branchSelect.addEventListener('change', e=>{
+    currentBranch = e.target.value;
+    renderAll();
+  });
+}
+
+let currentBranch = null;
+function B(){ return DATA.branches[currentBranch]; }
+function categoryOrder(){ return DATA.category_order || CATEGORY_ORDER_FALLBACK; }
+function catColor(cat){ return CATEGORY_COLORS[cat] || '#9AA5A3'; }
+
+loadData();
+
+function fmt(n, d=0){
+  if(n===null || n===undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('th-TH', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function fmtPct(n){ return n===null||n===undefined||isNaN(n) ? '—' : fmt(n,2) + '%'; }
+function signClass(n){ return n>0 ? 'pos' : (n<0 ? 'neg':'muted'); }
+function signed(n,d=0){ const s = n>0?'+':''; return s+fmt(n,d); }
+function catBadge(cat){
+  return `<span class="cat-badge"><span class="dot" style="background:${catColor(cat)}"></span>${cat}</span>`;
+}
+
+const pairLabelsMap = {
+  '1-2':'มกราคม → กุมภาพันธ์',
+  '2-3':'กุมภาพันธ์ → มีนาคม',
+  '3-4':'มีนาคม → เมษายน',
+  '4-5':'เมษายน → พฤษภาคม'
+};
+
+function classifyDriver(row){
+  const ap = Math.abs(row.price_effect), aq = Math.abs(row.qty_effect);
+  if(ap < 50 && aq < 50) return {label:'แทบไม่เปลี่ยน', cls:'flat'};
+  if(ap > aq*1.5) return {label:'ราคาเป็นหลัก', cls:'price'};
+  if(aq > ap*1.5) return {label:'ปริมาณเป็นหลัก', cls:'qty'};
+  return {label:'ทั้งสองอย่าง', cls:'both'};
+}
+
+let trendChartInstance = null;
+let varianceChartInstance = null;
+let categoryDonutInstance = null;
+
+function makePointLabelPlugin(opts){
+  const fmtFn = opts && opts.format ? opts.format : (v => v.toFixed(1)+'%');
+  return {
+    id: 'pointLabels_' + Math.random().toString(36).slice(2),
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      chart.data.datasets.forEach((dataset, dsIndex)=>{
+        const meta = chart.getDatasetMeta(dsIndex);
+        if(meta.hidden) return;
+        meta.data.forEach((point, i)=>{
+          const value = dataset.data[i];
+          if(value === null || value === undefined || isNaN(value)) return;
+          ctx.save();
+          ctx.font = '700 8.5px "Noto Sans Thai", sans-serif';
+          ctx.fillStyle = dataset.borderColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          const yOffset = dsIndex === 0 ? 7 : 16;
+          ctx.fillText(fmtFn(value), point.x, point.y - yOffset);
+          ctx.restore();
+        });
+      });
+    }
+  };
+}
+
+// ---------- SECTION 0: หมวดเครื่องดื่ม ----------
+function renderCategoryMonthSelect(){
+  const data = B();
+  const sel = document.getElementById('catMonthSelect');
+  sel.innerHTML = '';
+  data.months.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = data.month_names[m];
+    sel.appendChild(opt);
+  });
+  sel.onchange = e => renderCategoryPanel(Number(e.target.value));
+  const lastClosed = data.months.length > 1 ? data.months[data.months.length-2] : data.months[data.months.length-1];
+  if(lastClosed === undefined){
+    document.getElementById('categoryPanel').style.display = 'none';
+    return;
+  }
+  document.getElementById('categoryPanel').style.display = 'block';
+  sel.value = lastClosed;
+  renderCategoryPanel(lastClosed);
+}
+
+function renderCategoryPanel(m){
+  const data = B();
+  const byCat = (data.category_summary_by_month && data.category_summary_by_month[m]) || {};
+  const order = categoryOrder();
+  const rows = order.map(c => ({cat:c, value: byCat[c] || 0})).filter(r => r.value !== 0 || true);
+  const total = rows.reduce((s,r)=>s+r.value, 0);
+
+  if(categoryDonutInstance) categoryDonutInstance.destroy();
+  const nonZero = rows.filter(r=>r.value > 0);
+  const chartRows = nonZero.length ? nonZero : rows;
+  categoryDonutInstance = new Chart(document.getElementById('categoryDonut'), {
+    type:'doughnut',
+    data:{
+      labels: chartRows.map(r=>r.cat),
+      datasets:[{
+        data: chartRows.map(r=>r.value),
+        backgroundColor: chartRows.map(r=>catColor(r.cat)),
+        borderColor:'#fff', borderWidth:2
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'62%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(c)=> c.label+': ฿'+fmt(c.parsed)}}
+      }
+    }
+  });
+
+  const legend = document.getElementById('catLegend');
+  legend.innerHTML = rows.map(r=>{
+    const pct = total>0 ? (r.value/total*100) : 0;
+    return `<div class="cat-row">
+      <span class="cat-dot" style="background:${catColor(r.cat)}"></span>
+      <span class="cat-name">${r.cat}</span>
+      <span class="cat-val">฿${fmt(r.value)}</span>
+      <span class="cat-pct">${pct.toFixed(0)}%</span>
+    </div>`;
+  }).join('');
+
+  const top = rows.slice().sort((a,b)=>b.value-a.value)[0];
+  document.getElementById('categoryNote').innerHTML = top && top.value > 0
+    ? `เดือนนี้มูลค่าของหายมาจากหมวด <b>${top.cat}</b> มากที่สุด (฿${fmt(top.value)}, ${total>0?(top.value/total*100).toFixed(0):0}% ของของหายทั้งหมด) — ${
+        top.cat === 'เบียร์สด' ? 'ของหายจากเบียร์สดมักมาจาก keg ที่ตั้งฟองมาก/รั่วซึม หรือลืมปิดวาล์ว ควรเช็คเครื่องและ %Yield ของแต่ละก๊อก' :
+        top.cat === 'สุรา/สปิริต' ? 'ของหายจากสุรามักมาจาก free-pour ไม่ใช้จิ๊กเกอร์ หรือเทเผื่อมือ ลองเช็ค SOP การตวง' :
+        top.cat === 'ไวน์' ? 'ของหายจากไวน์มักมาจากขวดเปิดแล้วเหลือ/หกระหว่างเสิร์ฟ ลองเช็คการเก็บขวดเปิดและ portion control' :
+        'ลองเจาะดูรายการในหมวดนี้ที่ตารางสาเหตุ (ส่วนที่ 2) และตารางของหาย (ส่วนที่ 3) ด้านล่าง'
+      }`
+    : `เดือนนี้ยังไม่มีของหายที่นับเป็นมูลค่าบวกในหมวดใดเลย`;
+}
+
+// ---------- SECTION 1: ภาพรวม ----------
+function renderOverview(){
+  const data = B();
+  const ms = data.monthly_summary;
+  const monthNames = data.month_names;
+  const kpiRow = document.getElementById('kpiRow');
+
+  const lastMonthIdx = ms.length - 2 >= 0 ? ms.length - 2 : ms.length - 1;
+  const latestClosed = ms[lastMonthIdx];
+  const prevClosed = lastMonthIdx > 0 ? ms[lastMonthIdx - 1] : latestClosed;
+
+  if(!latestClosed){
+    kpiRow.innerHTML = `<div class="kpi" style="grid-column:1/-1;"><div class="label">ไม่มีเดือนที่ข้อมูลครบพอจะคำนวณได้</div><div class="value muted">—</div></div>`;
+  } else {
+    kpiRow.innerHTML = `
+    <div class="kpi">
+      <div class="label">% ต้นทุนตามสต็อก (เดือนล่าสุดที่ปิดแล้ว)</div>
+      <div class="value">${fmtPct(latestClosed.stock_pct)}</div>
+      <div class="sub">${monthNames[latestClosed.Month]}</div>
+    </div>
+    <div class="kpi amber">
+      <div class="label">% ต้นทุนตามสูตร (POS)</div>
+      <div class="value">${fmtPct(latestClosed.formula_pct)}</div>
+      <div class="sub">${monthNames[latestClosed.Month]}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">ส่วนต่าง (pp เสียไป)</div>
+      <div class="value">${fmt(latestClosed.pp_gap,2)} pp</div>
+      <div class="sub">เดือนก่อน ${fmt(prevClosed.pp_gap,2)} pp</div>
+    </div>
+    <div class="kpi amber">
+      <div class="label">มูลค่าของหาย (Lost)</div>
+      <div class="value">฿${fmt(latestClosed.lost_value)}</div>
+      <div class="sub">${monthNames[latestClosed.Month]}</div>
+    </div>
+  `;
+  }
+
+  if(trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{
+      labels: ms.map(r=>monthNames[r.Month]),
+      datasets:[
+        {label:'% ต้นทุนตามสต็อก', data:ms.map(r=>r.stock_pct), borderColor:'#0E7A82', backgroundColor:'#0E7A82', borderWidth:2, tension:.3, pointRadius:2.5, pointHoverRadius:4},
+        {label:'% ต้นทุนตามสูตร (POS)', data:ms.map(r=>r.formula_pct), borderColor:'#B5651D', backgroundColor:'#B5651D', borderWidth:2, tension:.3, pointRadius:2.5, pointHoverRadius:4}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:16 } },
+      plugins:{
+        legend:{position:'top', labels:{boxWidth:10,font:{size:11}}},
+        tooltip:{callbacks:{label:(c)=> c.dataset.label+': '+c.parsed.y.toFixed(2)+'%'}}
+      },
+      scales:{
+        y:{ticks:{callback:v=>v+'%', font:{size:11}}, grid:{color:'#EAF1F0'}},
+        x:{ticks:{font:{size:10}}, grid:{display:false}}
+      }
+    },
+    plugins:[ makePointLabelPlugin() ]
+  });
+
+  document.getElementById('overviewNote').innerHTML =
+    `เส้น <b>ต้นทุนตามสต็อก</b> (เขียวอมฟ้า) คือของที่หักออกจากสต็อกจริง ส่วน <b>ต้นทุนตามสูตร (POS)</b> (ทองแดง) คือของที่ POS ขายออกจริงบอกว่าควรใช้ — ช่องว่างระหว่างสองเส้นคือของที่ "หายเกินที่ขายได้" ทุกเดือน<br>
+     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ`;
+
+  if(varianceChartInstance) varianceChartInstance.destroy();
+  varianceChartInstance = new Chart(document.getElementById('varianceChart'), {
+    type:'line',
+    data:{
+      labels: ms.map(r=>monthNames[r.Month]),
+      datasets:[
+        {
+          label:'%Variance',
+          data: ms.map(r=>r.pp_gap),
+          borderColor:'#4285F4', backgroundColor:'#4285F4',
+          borderWidth:2, tension:.35, pointRadius:2.5, pointHoverRadius:4,
+          pointBackgroundColor:'#4285F4'
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:16 } },
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:(c)=> 'Variance: '+c.parsed.y.toFixed(2)+' pp'}}
+      },
+      scales:{
+        y:{ ticks:{callback:v=>v+'%', font:{size:11}}, grid:{color:'#EAF1F0'} },
+        x:{ ticks:{font:{size:10}}, grid:{display:false} }
+      }
+    },
+    plugins:[ makePointLabelPlugin({ format:(v)=> v.toFixed(1)+'pp' }) ]
+  });
+}
+
+// ---------- SECTION 2: ไล่ดูสาเหตุ ----------
+function renderCatFilterOptions(selectId){
+  const sel = document.getElementById(selectId);
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="ALL">ทุกหมวด</option>' +
+    categoryOrder().map(c=>`<option value="${c}">${c}</option>`).join('');
+  if(prevVal) sel.value = prevVal;
+}
+
+function renderPair(pairKey){
+  const data = B();
+  const catFilter = document.getElementById('catFilterDriver').value || 'ALL';
+  let rows = data.decomp_by_pair[pairKey].slice();
+  if(catFilter !== 'ALL') rows = rows.filter(r=>r.category === catFilter);
+  rows.sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
+
+  const incompleteCount = rows.filter(r=>r.incomplete).length;
+  const totalDelta = rows.reduce((s,r)=>s+r.delta_cost,0);
+  const totalPriceEffect = rows.reduce((s,r)=>s+r.price_effect,0);
+  const totalQtyEffect = rows.reduce((s,r)=>s+r.qty_effect,0);
+
+  const pairKpi = document.getElementById('pairKpiRow');
+  pairKpi.innerHTML = `
+    <div class="kpi">
+      <div class="label">ต้นทุนตามสต็อกเปลี่ยนไปรวม</div>
+      <div class="value ${signClass(totalDelta)}">${signed(totalDelta)} บาท</div>
+    </div>
+    <div class="kpi" style="background:#FBE6E6;">
+      <div class="label">มาจาก "ราคาเปลี่ยน"</div>
+      <div class="value ${signClass(totalPriceEffect)}">${signed(totalPriceEffect)} บาท</div>
+    </div>
+    <div class="kpi amber">
+      <div class="label">มาจาก "ปริมาณใช้เปลี่ยน"</div>
+      <div class="value ${signClass(totalQtyEffect)}">${signed(totalQtyEffect)} บาท</div>
+    </div>
+  `;
+
+  const pairWarning = document.getElementById('pairWarning');
+  if(incompleteCount > 0){
+    pairWarning.style.display = 'block';
+    pairWarning.innerHTML = `ℹ️ มี <b>${incompleteCount} รายการ</b> ที่มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่งของคู่นี้ (นับเป็น 0 ในการคำนวณ) — ลองเช็คว่าตั้งใจปล่อยว่างหรือลืมกรอก ตัวเลขด้านล่างยังถูกรวมในยอดตามปกติ`;
+  } else {
+    pairWarning.style.display = 'none';
+  }
+
+  const tbody = document.getElementById('driverBody');
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const driver = classifyDriver(r);
+    const tr = document.createElement('tr');
+    if(r.incomplete) tr.className = 'incomplete-row';
+    tr.innerHTML = `
+      <td>${r.incomplete ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่ง (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>' : ''}${r.item}</td>
+      <td>${catBadge(r.category)}</td>
+      <td>${fmt(r.price_prev)}</td>
+      <td>${fmt(r.price_now)}</td>
+      <td class="${signClass(r.price_change)}">${signed(r.price_change)}</td>
+      <td>${fmt(r.qty_prev,1)}</td>
+      <td>${fmt(r.qty_now,1)}</td>
+      <td class="${signClass(r.delta_cost)}">${signed(r.delta_cost)}</td>
+      <td class="${signClass(r.price_effect)}">${signed(r.price_effect)}</td>
+      <td class="${signClass(r.qty_effect)}">${signed(r.qty_effect)}</td>
+      <td><span class="tag ${driver.cls}">${driver.label}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const topQty = rows.filter(r=>r.delta_cost>0).sort((a,b)=>b.qty_effect-a.qty_effect).slice(0,3).map(r=>r.item).join(', ');
+  const priceUpCount = rows.filter(r=>r.price_change>0).length;
+  const priceDownCount = rows.filter(r=>r.price_change<0).length;
+  document.getElementById('insightNote').innerHTML = rows.length ? `
+     ช่วงนี้มีเครื่องดื่มราคาขึ้น <b>${priceUpCount} รายการ</b> ราคาลง <b>${priceDownCount} รายการ</b> — แต่ผลกระทบโดยรวมจาก "ราคา" (${signed(totalPriceEffect)} บาท) ${Math.abs(totalPriceEffect) < Math.abs(totalQtyEffect) ? 'น้อยกว่า' : 'มากกว่า'} ผลจาก "ปริมาณการใช้ที่เพิ่มขึ้น" (${signed(totalQtyEffect)} บาท) มาก<br>
+     ตัวที่ทำให้ต้นทุนพุ่งจากปริมาณใช้มากที่สุดคือ <b>${topQty || '—'}</b> — ควรไปเช็คว่าทำไมใช้/หายมากกว่าเดือนก่อนตัวนี้`
+    : `ไม่มีรายการในหมวดที่เลือกสำหรับช่วงนี้`;
+}
+
+function renderPairSelect(){
+  const data = B();
+  const pairSelect = document.getElementById('pairSelect');
+  pairSelect.innerHTML = '';
+  Object.keys(data.decomp_by_pair).forEach(k=>{
+    const opt = document.createElement('option');
+    opt.value = k; opt.textContent = pairLabelsMap[k] || k;
+    pairSelect.appendChild(opt);
+  });
+  pairSelect.onchange = e => renderPair(e.target.value);
+  renderCatFilterOptions('catFilterDriver');
+  document.getElementById('catFilterDriver').onchange = () => renderPair(pairSelect.value);
+  const keys = Object.keys(data.decomp_by_pair);
+  if(keys.length){
+    pairSelect.value = keys[keys.length-1];
+    renderPair(pairSelect.value);
+  }
+}
+
+// ---------- SECTION 3: รายการของหาย ----------
+function isAnomalous(stockcost, formulacost){
+  const s = Math.abs(stockcost||0), f = Math.abs(formulacost||0);
+  if (f < 50 && s < 50) return false;
+  if (f === 0) return s > 500;
+  const ratio = s / f;
+  return ratio > 2 || ratio < 0.5;
+}
+
+function renderLostTable(m){
+  const data = B();
+  const catFilter = document.getElementById('catFilterLost').value || 'ALL';
+  let rows = data.item_table.map(r=>({
+    item: r.item, category: r.category,
+    price: r['price_'+m],
+    lostqty: r['lostqty_'+m],
+    lostvalue: r['lostvalue_'+m],
+    stockcost: r['stockcost_'+m],
+    formulacost: r['formulacost_'+m],
+    pctvar: r['pctvar_'+m],
+    incomplete: r['incomplete_'+m]
+  })).map(r=>({...r, anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost)}));
+
+  if(catFilter !== 'ALL') rows = rows.filter(r=>r.category === catFilter);
+  rows.sort((a,b)=> (b.lostvalue||0) - (a.lostvalue||0));
+
+  const flaggedItems = rows.filter(r=>r.anomalous);
+  const incompleteItems = rows.filter(r=>r.incomplete);
+  const banner = document.getElementById('anomalyBanner');
+  let bannerHtml = '';
+  if(flaggedItems.length){
+    bannerHtml += `⚠️ พบ <b>${flaggedItems.length} รายการ</b> ที่ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ${flaggedItems.map(r=>r.item).join(', ')}<br>ลองเช็คการนับสต็อกหรือการคีย์ข้อมูล (ต้นเดือน/ซื้อเข้า/ปลายเดือน) ของรายการเหล่านี้อีกครั้ง`;
+  }
+  if(incompleteItems.length){
+    if(bannerHtml) bannerHtml += '<br><br>';
+    bannerHtml += `ℹ️ พบ <b>${incompleteItems.length} รายการ</b> ที่มีช่องว่างต้นเดือน/ปลายเดือนในเดือนนี้ (นับเป็น 0 ในการคำนวณตามปกติ) — ${incompleteItems.map(r=>r.item).join(', ')}<br>ลองเช็คว่าตั้งใจปล่อยว่างหรือลืมกรอก`;
+  }
+  if(bannerHtml){
+    banner.style.display = 'block';
+    banner.innerHTML = bannerHtml;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const tbody = document.getElementById('lostBody');
+  tbody.innerHTML = '';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    if(r.incomplete) tr.className = 'incomplete-row';
+    else if(r.anomalous) tr.className = 'flagged';
+    const icon = r.incomplete
+      ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือน (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>'
+      : (r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : '');
+    tr.innerHTML = `
+      <td>${icon}${r.item}</td>
+      <td>${catBadge(r.category)}</td>
+      <td>${fmt(r.price)}</td>
+      <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
+      <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
+      <td>${fmt(r.stockcost)}</td>
+      <td>${fmt(r.formulacost)}</td>
+      <td class="${signClass(r.pctvar)}">${signed(r.pctvar,2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderMonthSelect(){
+  const data = B();
+  const monthSelect = document.getElementById('monthSelect');
+  monthSelect.innerHTML = '';
+  data.months.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = data.month_names[m];
+    monthSelect.appendChild(opt);
+  });
+  monthSelect.onchange = e=>renderLostTable(Number(e.target.value));
+  renderCatFilterOptions('catFilterLost');
+  document.getElementById('catFilterLost').onchange = () => renderLostTable(Number(monthSelect.value));
+  const lastMonth = data.months[data.months.length-2] || data.months[data.months.length-1];
+  monthSelect.value = lastMonth;
+  renderLostTable(lastMonth);
+}
+
+function renderAll(){
+  renderCategoryMonthSelect();
+  renderOverview();
+  renderPairSelect();
+  renderMonthSelect();
+}
+</script>
+</body>
+</html>
