@@ -53,8 +53,11 @@
     .chart-pair{grid-template-columns:1fr;gap:20px;}
   }
 
-  .two-col-panels{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;margin-top:14px;}
+  .two-col-panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start;margin-top:14px;}
   .subpanel{min-width:0;}
+  @media (max-width:1100px){
+    .two-col-panels{grid-template-columns:1fr 1fr;}
+  }
   @media (max-width:760px){
     .two-col-panels{grid-template-columns:1fr;}
   }
@@ -71,6 +74,11 @@
   th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;}
   th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:inherit;}
   th{font-weight:700;color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+  th[data-key]{cursor:pointer;user-select:none;}
+  th[data-key]:hover{color:var(--ink);}
+  th[data-key]::after{content:'';margin-left:4px;font-size:9px;color:var(--line);}
+  th[data-key].sort-asc::after{content:'▲';color:var(--teal);}
+  th[data-key].sort-desc::after{content:'▼';color:var(--teal);}
   tbody tr:hover{background:#F3FAFA;}
   .tbl-scroll{overflow-x:auto;border-radius:8px;}
 
@@ -197,6 +205,21 @@
           </table>
         </div>
       </div>
+      <div class="subpanel">
+        <h3 class="chart-title">รายการที่ไม่สั่งเข้า (ไม่มี ซื้อเข้า-FMH เลยทุกเดือน)</h3>
+        <div class="info-banner">รวมทุกเดือนของสาขานี้ ไม่ฟิลเตอร์ตามเดือนที่เลือกด้านบน — ถ้ายังขายได้แต่ไม่เคยสั่งเข้าเลย ลองเช็คว่าลืมคีย์ หรือจริงๆไม่ได้สั่งเข้าเดือนนั้นๆ</div>
+        <div class="tbl-scroll">
+          <table id="neverPurchasedTable">
+            <thead>
+              <tr>
+                <th>เครื่องดื่ม</th>
+                <th>หมวด</th>
+              </tr>
+            </thead>
+            <tbody id="neverPurchasedBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -218,15 +241,16 @@
       <table id="lostTable">
         <thead>
           <tr>
-            <th>เครื่องดื่ม</th>
-            <th>หมวด</th>
-            <th>สถานะการจดสต็อก</th>
-            <th>ราคา/หน่วย</th>
-            <th>ปริมาณหาย (Lost)</th>
-            <th>มูลค่าหาย (บาท)</th>
-            <th>ต้นทุนตามสต็อก</th>
-            <th>ต้นทุนตามสูตร (POS)</th>
-            <th>%var (pp)</th>
+            <th data-key="item">เครื่องดื่ม</th>
+            <th data-key="category">หมวด</th>
+            <th data-key="status">สถานะการจดสต็อก</th>
+            <th data-key="price">ราคา/หน่วย</th>
+            <th data-key="qtyformula">ขายออกจริง-POS</th>
+            <th data-key="lostqty">ปริมาณหาย (Lost)</th>
+            <th data-key="lostvalue">มูลค่าหาย (บาท)</th>
+            <th data-key="stockcost">ต้นทุนตามสต็อก</th>
+            <th data-key="formulacost">ต้นทุนตามสูตร (POS)</th>
+            <th data-key="pctvar">%var (pp)</th>
           </tr>
         </thead>
         <tbody id="lostBody"></tbody>
@@ -249,17 +273,17 @@
       <table id="driverTable">
         <thead>
           <tr>
-            <th>เครื่องดื่ม</th>
-            <th>หมวด</th>
-            <th>ราคา/หน่วย (ก่อน)</th>
-            <th>ราคา/หน่วย (หลัง)</th>
-            <th>Δ ราคา</th>
-            <th>ปริมาณใช้ (ก่อน)</th>
-            <th>ปริมาณใช้ (หลัง)</th>
-            <th>Δ ต้นทุน (บาท)</th>
-            <th>ผลจากราคา</th>
-            <th>ผลจากปริมาณ</th>
-            <th>สาเหตุหลัก</th>
+            <th data-key="item">เครื่องดื่ม</th>
+            <th data-key="category">หมวด</th>
+            <th data-key="price_prev">ราคา/หน่วย (ก่อน)</th>
+            <th data-key="price_now">ราคา/หน่วย (หลัง)</th>
+            <th data-key="price_change">Δ ราคา</th>
+            <th data-key="qty_prev">ปริมาณใช้ (ก่อน)</th>
+            <th data-key="qty_now">ปริมาณใช้ (หลัง)</th>
+            <th data-key="delta_cost">Δ ต้นทุน (บาท)</th>
+            <th data-key="price_effect">ผลจากราคา</th>
+            <th data-key="qty_effect">ผลจากปริมาณ</th>
+            <th data-key="driver">สาเหตุหลัก</th>
           </tr>
         </thead>
         <tbody id="driverBody"></tbody>
@@ -344,6 +368,56 @@ const pairLabelsMap = {
   '3-4':'มีนาคม → เมษายน',
   '4-5':'เมษายน → พฤษภาคม'
 };
+
+// ---------- ตาราง sort ได้ (ส่วนที่ 3 และ 4) ----------
+let lostSort = { key: null, dir: 1 };
+let driverSort = { key: null, dir: 1 };
+
+function compareVal(a, b, dir){
+  if(typeof a === 'string' || typeof b === 'string'){
+    return dir * String(a||'').localeCompare(String(b||''), 'th');
+  }
+  return dir * ((a||0) - (b||0));
+}
+
+function getLostSortValue(r, key){
+  if(key === 'status') return r.nostock ? 2 : (r.good ? 1 : 0);
+  return r[key];
+}
+
+function getDriverSortValue(r, key){
+  if(key === 'driver') return r._driverLabel;
+  return r[key];
+}
+
+function updateSortArrows(tableId, sortState){
+  document.querySelectorAll('#'+tableId+' thead th[data-key]').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.key === sortState.key){
+      th.classList.add(sortState.dir === 1 ? 'sort-asc' : 'sort-desc');
+    }
+  });
+}
+
+function initSortableHeaders(){
+  document.querySelectorAll('#lostTable thead th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if(lostSort.key === key) lostSort.dir *= -1; else { lostSort.key = key; lostSort.dir = 1; }
+      updateSortArrows('lostTable', lostSort);
+      renderLostTable(Number(document.getElementById('monthSelect').value));
+    });
+  });
+  document.querySelectorAll('#driverTable thead th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if(driverSort.key === key) driverSort.dir *= -1; else { driverSort.key = key; driverSort.dir = 1; }
+      updateSortArrows('driverTable', driverSort);
+      renderPair(document.getElementById('pairSelect').value);
+    });
+  });
+}
+initSortableHeaders();
 
 function classifyDriver(row){
   const ap = Math.abs(row.price_effect), aq = Math.abs(row.qty_effect);
@@ -499,7 +573,12 @@ function renderPair(pairKey){
   const catFilter = document.getElementById('catFilterDriver').value || 'ALL';
   let rows = data.decomp_by_pair[pairKey].slice();
   if(catFilter !== 'ALL') rows = rows.filter(r=>r.category === catFilter);
-  rows.sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
+  rows.forEach(r => { r._driverLabel = classifyDriver(r).label; });
+  if(driverSort.key){
+    rows.sort((a,b)=> compareVal(getDriverSortValue(a,driverSort.key), getDriverSortValue(b,driverSort.key), driverSort.dir));
+  } else {
+    rows.sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
+  }
 
   const incompleteCount = rows.filter(r=>r.incomplete).length;
   const totalDelta = rows.reduce((s,r)=>s+r.delta_cost,0);
@@ -601,6 +680,7 @@ function renderLostTable(m){
   let rows = data.item_table.map(r=>({
     item: r.item, category: r.category,
     price: r['price_'+m],
+    qtyformula: r['qtyformula_'+m],
     lostqty: r['lostqty_'+m],
     lostvalue: r['lostvalue_'+m],
     stockcost: r['stockcost_'+m],
@@ -612,7 +692,11 @@ function renderLostTable(m){
   })).map(r=>({...r, anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost)}));
 
   if(catFilter !== 'ALL') rows = rows.filter(r=>r.category === catFilter);
-  rows.sort((a,b)=> (b.lostvalue||0) - (a.lostvalue||0));
+  if(lostSort.key){
+    rows.sort((a,b)=> compareVal(getLostSortValue(a,lostSort.key), getLostSortValue(b,lostSort.key), lostSort.dir));
+  } else {
+    rows.sort((a,b)=> (b.lostvalue||0) - (a.lostvalue||0));
+  }
 
   const flaggedItems = rows.filter(r=>r.anomalous);
   const incompleteItems = rows.filter(r=>r.incomplete);
@@ -651,6 +735,7 @@ function renderLostTable(m){
       <td>${catBadge(r.category)}</td>
       <td>${statusBadge(r)}</td>
       <td>${fmt(r.price)}</td>
+      <td>${fmt(r.qtyformula,1)}</td>
       <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
       <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
       <td>${fmt(r.stockcost)}</td>
@@ -698,6 +783,21 @@ function renderGoodStockTable(m){
   `).join('') : `<tr><td colspan="4" class="muted">เดือนนี้ไม่มีรายการที่เข้าเกณฑ์สต็อกดี</td></tr>`;
 }
 
+function renderNeverPurchasedTable(){
+  const data = B();
+  const rows = (data.never_purchased_items || [])
+    .slice()
+    .sort((a,b) => a.item.localeCompare(b.item));
+
+  const tbody = document.getElementById('neverPurchasedBody');
+  tbody.innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${r.item}</td>
+      <td>${catBadge(r.category)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="2" class="muted">ไม่มีรายการที่ไม่สั่งเข้าเลย</td></tr>`;
+}
+
 function renderMonthSelect(){
   const data = B();
   const monthSelect = document.getElementById('monthSelect');
@@ -730,8 +830,8 @@ function renderMonthSelect(){
 function renderAll(){
   renderOverview();
   renderMonthSelect();
+  renderNeverPurchasedTable();
   renderPairSelect();
-  renderMonthSelect();
 }
 </script>
 </body>
