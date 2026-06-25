@@ -136,6 +136,13 @@
   <!-- SECTION 1: OVERVIEW (moved to top) -->
   <div class="panel">
     <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">รายการ error (Lost ติดลบเกินครึ่งของ POS):</span>
+      <select id="errorFilterToggle">
+        <option value="include">รวมรายการ error</option>
+        <option value="exclude">ไม่รวมรายการ error</option>
+      </select>
+    </div>
     <div class="kpi-row" id="kpiRow"></div>
     <div class="chart-pair">
       <div class="chart-col">
@@ -308,6 +315,7 @@ function initBranchSelector(){
     currentBranch = e.target.value;
     renderAll();
   });
+  document.getElementById('errorFilterToggle').addEventListener('change', () => renderOverview());
 }
 
 let currentBranch = null;
@@ -375,7 +383,8 @@ function makePointLabelPlugin(opts){
 // ---------- SECTION 1: ภาพรวม ----------
 function renderOverview(){
   const data = B();
-  const ms = data.monthly_summary;
+  const mode = document.getElementById('errorFilterToggle').value || 'include';
+  const ms = mode === 'exclude' && data.monthly_summary_excl_error ? data.monthly_summary_excl_error : data.monthly_summary;
   const monthNames = data.month_names;
   const kpiRow = document.getElementById('kpiRow');
 
@@ -435,9 +444,13 @@ function renderOverview(){
     plugins:[ makePointLabelPlugin() ]
   });
 
+  const totalExcluded = ms.reduce((s,r)=> s + (r.error_items_excluded||0), 0);
   document.getElementById('overviewNote').innerHTML =
     `เส้น <b>ต้นทุนตามสต็อก</b> (เขียวอมฟ้า) คือของที่หักออกจากสต็อกจริง ส่วน <b>ต้นทุนตามสูตร (POS)</b> (ทองแดง) คือของที่ POS ขายออกจริงบอกว่าควรใช้ — ช่องว่างระหว่างสองเส้นคือของที่ "หายเกินที่ขายได้" ทุกเดือน<br>
-     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ`;
+     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ` +
+    (mode === 'exclude'
+      ? `<br><b>กำลังกรองรายการ error อยู่</b> — ตัดรายการที่ Lost ติดลบเกินครึ่งของยอดขายตาม POS ออกจากกราฟนี้ (รวม ${fmt(totalExcluded)} รายการ-เดือนทั้งหมด) เพื่อกันไม่ให้ % เพี้ยนจากข้อมูลคีย์ผิด`
+      : '');
 
   if(varianceChartInstance) varianceChartInstance.destroy();
   varianceChartInstance = new Chart(document.getElementById('varianceChart'), {
