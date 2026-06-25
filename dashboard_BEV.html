@@ -204,7 +204,9 @@
   <div class="panel">
     <h2><span class="num">3</span> รายการเครื่องดื่มหายรายเดือน (Lost ตามสต็อก)</h2>
     <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">หมวด:</span>
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+      <select id="monthSelectMirror"></select>
+      <span class="muted" style="font-size:13px;font-weight:600;margin-left:8px;">หมวด:</span>
       <select id="catFilterLost"></select>
     </div>
     <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
@@ -699,25 +701,30 @@ function renderGoodStockTable(m){
 function renderMonthSelect(){
   const data = B();
   const monthSelect = document.getElementById('monthSelect');
+  const monthMirror = document.getElementById('monthSelectMirror');
   monthSelect.innerHTML = '';
+  monthMirror.innerHTML = '';
   data.months.forEach(m=>{
     const opt = document.createElement('option');
     opt.value = m; opt.textContent = data.month_names[m];
     monthSelect.appendChild(opt);
+    const optMirror = document.createElement('option');
+    optMirror.value = m; optMirror.textContent = data.month_names[m];
+    monthMirror.appendChild(optMirror);
   });
-  monthSelect.onchange = e=>{
-    const m = Number(e.target.value);
+  function changeMonth(m){
+    monthSelect.value = m;
+    monthMirror.value = m;
     renderLostTable(m);
     renderNoStockTable(m);
     renderGoodStockTable(m);
-  };
+  }
+  monthSelect.onchange = e => changeMonth(Number(e.target.value));
+  monthMirror.onchange = e => changeMonth(Number(e.target.value));
   renderCatFilterOptions('catFilterLost');
   document.getElementById('catFilterLost').onchange = () => renderLostTable(Number(monthSelect.value));
   const lastMonth = data.months[data.months.length-2] || data.months[data.months.length-1];
-  monthSelect.value = lastMonth;
-  renderLostTable(lastMonth);
-  renderNoStockTable(lastMonth);
-  renderGoodStockTable(lastMonth);
+  changeMonth(lastMonth);
 }
 
 function renderAll(){
