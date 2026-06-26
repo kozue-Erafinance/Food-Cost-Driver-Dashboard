@@ -92,6 +92,18 @@
     .panel{padding:14px 14px 12px;}
   }
 
+  .refresh-row{
+    display:flex; align-items:center; justify-content:flex-end; gap:10px;
+    max-width:1280px; margin:0 auto 8px; padding:0 24px;
+  }
+  .refresh-btn{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink);
+    background:#FFFFFF; border:1px solid var(--line); border-radius:8px;
+    padding:6px 12px; cursor:pointer;
+  }
+  .refresh-btn:hover{ background:var(--pink-pale); }
+  .refresh-btn:disabled{ opacity:.5; cursor:default; }
+
   #loadingOverlay{
     display:flex; align-items:center; justify-content:center;
     min-height:200px; font-size:14px; color:var(--ink-soft);
@@ -112,6 +124,11 @@
       <select id="branchSelect"></select>
     </div>
   </header>
+
+  <div class="refresh-row">
+    <span id="lastUpdated" class="muted" style="font-size:12px;"></span>
+    <button id="refreshBtn" class="refresh-btn">🔄 ดึงข้อมูลล่าสุด</button>
+  </div>
 
   <div id="loadingOverlay">กำลังโหลดข้อมูลล่าสุดจาก Google Sheet...</div>
 
@@ -202,14 +219,33 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyh9ObP8gwUaGPf
 
 let DATA = null;
 
-async function loadData(){
+function showLastUpdated(iso){
+  const el = document.getElementById('lastUpdated');
+  if(!el || !iso) return;
+  const d = new Date(iso);
+  el.textContent = 'อัพเดทล่าสุด: ' + d.toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'});
+}
+
+async function loadData(forceFresh=false){
   const loadingEl = document.getElementById('loadingOverlay');
   try{
-    const res = await fetch(APPS_SCRIPT_URL);
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    DATA = await res.json();
+    const freshParam = forceFresh ? '&fresh=1' : '';
+    // จังหวะที่ 1: ดึงแค่รายชื่อสาขา (เบา ไม่ต้องรอประมวลผลข้อมูลหนักทั้งหมด)
+    const listRes = await fetch(APPS_SCRIPT_URL + '?list=1' + freshParam);
+    if(!listRes.ok) throw new Error('HTTP ' + listRes.status);
+    const listJson = await listRes.json();
+    const branchNames = Object.keys(listJson.branch_labels || {});
+    if(!branchNames.length) throw new Error('ไม่พบชื่อสาขาในชีต');
+
+    const keepBranch = (forceFresh && currentBranch && branchNames.includes(currentBranch)) ? currentBranch : null;
+    DATA = { branches: {}, branch_labels: listJson.branch_labels };
+    initBranchSelector(branchNames, keepBranch);
+
+    // จังหวะที่ 2: ดึงข้อมูลเต็มเฉพาะสาขาที่กำลังดูอยู่เท่านั้น
+    const branchGenAt = await loadBranchData(currentBranch, forceFresh);
+
     if(loadingEl) loadingEl.remove();
-    initBranchSelector();
+    showLastUpdated(branchGenAt || listJson.generated_at);
     renderAll();
   }catch(err){
     if(loadingEl){
@@ -221,18 +257,52 @@ async function loadData(){
   }
 }
 
-function initBranchSelector(){
+async function loadBranchData(branchName, forceFresh=false){
+  const freshParam = forceFresh ? '&fresh=1' : '';
+  const res = await fetch(APPS_SCRIPT_URL + '?branch=' + encodeURIComponent(branchName) + freshParam);
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  Object.assign(DATA.branches, json.branches);
+  return json.generated_at;
+}
+
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังดึงข้อมูล...';
+  try{
+    await loadData(true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 ดึงข้อมูลล่าสุด';
+  }
+});
+
+function initBranchSelector(branchNames, keepBranch=null){
   const branchSelect = document.getElementById('branchSelect');
   branchSelect.innerHTML = '';
-  Object.keys(DATA.branches).forEach(key=>{
+  branchNames.forEach(key=>{
     const opt = document.createElement('option');
     opt.value = key; opt.textContent = DATA.branch_labels[key] || key;
     branchSelect.appendChild(opt);
   });
-  currentBranch = Object.keys(DATA.branches)[0];
+  currentBranch = keepBranch || branchNames[0];
   branchSelect.value = currentBranch;
-  branchSelect.addEventListener('change', e=>{
-    currentBranch = e.target.value;
+  branchSelect.addEventListener('change', async e=>{
+    const selected = e.target.value;
+    currentBranch = selected;
+    if(!DATA.branches[selected]){
+      branchSelect.disabled = true;
+      try{
+        const genAt = await loadBranchData(selected);
+        showLastUpdated(genAt);
+      }catch(err){
+        console.error(err);
+        branchSelect.disabled = false;
+        return;
+      }
+      branchSelect.disabled = false;
+    }
     renderAll();
   });
 }
