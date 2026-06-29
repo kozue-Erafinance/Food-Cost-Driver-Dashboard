@@ -144,13 +144,19 @@
   <!-- SECTION 1: OVERVIEW (moved to top) -->
   <div class="panel">
     <h2><span class="num">1</span> ภาพรวมรายเดือน — % ต้นทุนเครื่องดื่มเทียบยอดขาย</h2>
-    <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">รายการ error (Lost ติดลบเกินครึ่งของ POS):</span>
-      <select id="errorFilterToggle">
-        <option value="include">รวมรายการ error</option>
-        <option value="exclude">ไม่รวมรายการ error</option>
-      </select>
-    </div>
+  <div class="controls">
+  <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+  <select id="overviewMonthSelect"></select>
+
+  <span class="muted" style="font-size:13px;font-weight:600;margin-left:12px;">
+    รายการ error (Lost ติดลบเกินครึ่งของ POS):
+  </span>
+
+  <select id="errorFilterToggle">
+    <option value="include">รวมรายการ error</option>
+    <option value="exclude">ไม่รวมรายการ error</option>
+  </select>
+</div>
     <div class="kpi-row" id="kpiRow"></div>
     <div class="chart-pair">
       <div class="chart-col">
@@ -456,6 +462,27 @@ function makePointLabelPlugin(opts){
 }
 
 // ---------- SECTION 1: ภาพรวม ----------
+function populateOverviewMonth(){
+  const data = B();
+  const sel = document.getElementById("overviewMonthSelect");
+
+  sel.innerHTML = "";
+
+  data.monthly_summary.forEach(r=>{
+    const op = document.createElement("option");
+    op.value = r.Month;
+    op.textContent = data.month_names[r.Month];
+    sel.appendChild(op);
+  });
+
+  const last =
+    data.monthly_summary[data.monthly_summary.length-2] ||
+    data.monthly_summary[data.monthly_summary.length-1];
+
+  sel.value = last.Month;
+
+  sel.onchange = renderOverview;
+}
 function renderOverview(){
   const data = B();
   const mode = document.getElementById('errorFilterToggle').value || 'include';
@@ -463,9 +490,17 @@ function renderOverview(){
   const monthNames = data.month_names;
   const kpiRow = document.getElementById('kpiRow');
 
-  const lastMonthIdx = ms.length - 2 >= 0 ? ms.length - 2 : ms.length - 1;
-  const latestClosed = ms[lastMonthIdx];
-  const prevClosed = lastMonthIdx > 0 ? ms[lastMonthIdx - 1] : latestClosed;
+  const selectedMonth =
+Number(document.getElementById("overviewMonthSelect").value);
+
+const latestClosed =
+ms.find(r=>r.Month===selectedMonth);
+
+const idx =
+ms.findIndex(r=>r.Month===selectedMonth);
+
+const prevClosed =
+idx>0 ? ms[idx-1] : latestClosed;
 
   if(!latestClosed){
     kpiRow.innerHTML = `<div class="kpi" style="grid-column:1/-1;"><div class="label">ไม่มีเดือนที่ข้อมูลครบพอจะคำนวณได้</div><div class="value muted">—</div></div>`;
@@ -825,8 +860,9 @@ function renderMonthSelect(){
   const lastMonth = data.months[data.months.length-2] || data.months[data.months.length-1];
   changeMonth(lastMonth);
 }
-
+  
 function renderAll(){
+  populateOverviewMonth();
   renderOverview();
   renderMonthSelect();
   renderNeverPurchasedTable();
