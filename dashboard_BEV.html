@@ -310,7 +310,7 @@ let DATA = null;
 async function loadData(){
   const loadingEl = document.getElementById('loadingOverlay');
   try{
-    const res = await fetch(APPS_SCRIPT_URL);
+    const res = await fetch(APPS_SCRIPT_URL + "?kind=bev");
     if(!res.ok) throw new Error('HTTP ' + res.status);
     DATA = await res.json();
     if(loadingEl) loadingEl.remove();
