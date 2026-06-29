@@ -395,7 +395,7 @@ function classifyDriver(row){
   const ap = Math.abs(row.price_effect), aq = Math.abs(row.qty_effect);
   if(ap < 50 && aq < 50) return {label:'แทบไม่เปลี่ยน', cls:'flat'};
   if(ap > aq*1.5) return {label:'ราคาเป็นหลัก', cls:'price'};
-  if(aq > ap*1.5) return {label:'ปริมาฎเป็นหลัก', cls:'qty'};
+  if(aq > ap*1.5) return {label:'ปริมาณเป็นหลัก', cls:'qty'};
   return {label:'ทั้งสองอย่าง', cls:'both'};
 }
 
