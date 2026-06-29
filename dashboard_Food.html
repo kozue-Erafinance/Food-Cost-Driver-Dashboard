@@ -77,6 +77,13 @@
   .note{font-size:12px;color:var(--ink-soft);background:var(--amber-pale);border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.6;}
 
   .anomaly-banner{font-size:12.5px;color:var(--red);background:var(--red-pale);border:1px solid var(--red);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
+
+  .status-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:8px;}
+  .status-col{min-width:0;}
+  .status-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:4px 0 10px;}
+  @media (max-width:900px){
+    .status-grid{grid-template-columns:1fr;}
+  }
   .anomaly-banner b{font-weight:800;}
   .info-banner{font-size:12.5px;color:var(--ink-soft);background:#EFEAE4;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6;}
   .info-banner b{font-weight:800;color:var(--ink);}
@@ -153,35 +160,45 @@
     <div class="note" id="overviewNote"></div>
   </div>
 
-  <!-- SECTION 2: DRILL DOWN -->
+  <!-- SECTION 2: STOCK COUNT STATUS -->
   <div class="panel">
-    <h2><span class="num">2</span> ไล่ดูสาเหตุ — วัตถุดิบไหนทำให้ %ขยับ</h2>
+    <h2><span class="num">2</span> สถานะการนับสต็อก — เดือนที่เลือก</h2>
     <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">เทียบช่วง:</span>
-      <select id="pairSelect"></select>
+      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+      <select id="stockStatusMonthSelect"></select>
     </div>
-    <div class="kpi-row" id="pairKpiRow" style="grid-template-columns:repeat(3,1fr);"></div>
-    <div id="pairWarning" class="info-banner" style="display:none;"></div>
-    <div class="tbl-scroll">
-      <table id="driverTable">
-        <thead>
-          <tr>
-            <th>วัตถุดิบ</th>
-            <th>ราคา/หน่วย (ก่อน)</th>
-            <th>ราคา/หน่วย (หลัง)</th>
-            <th>Δ ราคา</th>
-            <th>ปริมาณใช้ (ก่อน)</th>
-            <th>ปริมาณใช้ (หลัง)</th>
-            <th>Δ ต้นทุน (บาท)</th>
-            <th>ผลจากราคา</th>
-            <th>ผลจากปริมาณ</th>
-            <th>สาเหตุหลัก</th>
-          </tr>
-        </thead>
-        <tbody id="driverBody"></tbody>
-      </table>
+    <div class="status-grid">
+      <div class="status-col">
+        <h3 class="chart-title">1. รายการที่ไม่มีการจดสต็อก</h3>
+        <p class="status-desc">ไม่มีข้อมูลทั้งต้นเดือน-1 และปลายเดือนเลยในเดือนนี้ — ตัวเลขของหายของรายการเหล่านี้ไม่น่าเชื่อถือ เพราะไม่ได้นับสต็อกจริง</p>
+        <div class="tbl-scroll">
+          <table id="noCountTable">
+            <thead><tr><th>วัตถุดิบ</th></tr></thead>
+            <tbody id="noCountBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="status-col">
+        <h3 class="chart-title">2. รายการที่สต็อกดี (ของหายไม่เกิน ±5 หน่วย)</h3>
+        <p class="status-desc">มีข้อมูลต้นเดือน-1 และปลายเดือนครบ และของหายอยู่ในช่วง ±5 หน่วย — ถือว่านับสต็อกแม่นยำ ควบคุมได้ดี</p>
+        <div class="tbl-scroll">
+          <table id="goodStockTable">
+            <thead><tr><th>วัตถุดิบ</th><th>ปริมาณหาย (Lost)</th><th>มูลค่าหาย (บาท)</th></tr></thead>
+            <tbody id="goodStockBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="status-col">
+        <h3 class="chart-title">3. รายการที่ไม่สั่งเข้า (ไม่มี ซื้อเข้า-FMH เลยทุกเดือน)</h3>
+        <p class="status-desc">รวมทุกเดือนของสาขานี้ ไม่ฟิลเตอร์ตามเดือนที่เลือกด้านบน — แสดงเฉพาะรายการที่มี "ขายออกจริง" มากกว่า 0 อย่างน้อยเดือนใดเดือนหนึ่ง (ตัดรายการที่ไม่มีกิจกรรมอะไรเลยทิ้งไป) แต่ไม่มี "ซื้อเข้า-FMH" เลยทุกเดือน — ลองเช็คว่าลืมคีย์ หรือจริงๆไม่ได้สั่งเข้าเดือนนั้นๆ</p>
+        <div class="tbl-scroll">
+          <table id="neverPurchasedTable">
+            <thead><tr><th>วัตถุดิบ</th></tr></thead>
+            <tbody id="neverPurchasedBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="note" id="insightNote"></div>
   </div>
 
   <!-- SECTION 3: ITEM LOST TRACKER -->
@@ -210,12 +227,43 @@
     </div>
   </div>
 
+  <!-- SECTION 4: DRILL DOWN -->
+  <div class="panel">
+    <h2><span class="num">4</span> ไล่ดูสาเหตุ — วัตถุดิบไหนทำให้ %ขยับ</h2>
+    <div class="controls">
+      <span class="muted" style="font-size:13px;font-weight:600;">เทียบช่วง:</span>
+      <select id="pairSelect"></select>
+    </div>
+    <div class="kpi-row" id="pairKpiRow" style="grid-template-columns:repeat(3,1fr);"></div>
+    <div id="pairWarning" class="info-banner" style="display:none;"></div>
+    <div class="tbl-scroll">
+      <table id="driverTable">
+        <thead>
+          <tr>
+            <th>วัตถุดิบ</th>
+            <th>ราคา/หน่วย (ก่อน)</th>
+            <th>ราคา/หน่วย (หลัง)</th>
+            <th>Δ ราคา</th>
+            <th>ปริมาณใช้ (ก่อน)</th>
+            <th>ปริมาณใช้ (หลัง)</th>
+            <th>Δ ต้นทุน (บาท)</th>
+            <th>ผลจากราคา</th>
+            <th>ผลจากปริมาณ</th>
+            <th>สาเหตุหลัก</th>
+          </tr>
+        </thead>
+        <tbody id="driverBody"></tbody>
+      </table>
+    </div>
+    <div class="note" id="insightNote"></div>
+  </div>
+
   <p class="footer-note">คำนวณจากข้อมูลระดับรายวัตถุดิบ — มูลค่า = ปริมาณ × ราคา/หน่วยในรายงาน<br>%var (pp) = (ต้นทุนตามสต็อก − ต้นทุนตามสูตร) ÷ ยอดขายรวมทั้งเดือน × 100 — รวมทุกวัตถุดิบในเดือนนั้นจะเท่ากับ %Variance รวมของกราฟด้านบนเป๊ะ</p>
 </div>
 
 <script>
 // ==== แก้ไขตรงนี้: ใส่ URL ของ Apps Script Web App ที่ deploy ไว้ ====
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyh9ObP8gwUaGPfsXXVa-163orwFkjxshwYM-hgMb0WOxnWR8WM1r1Z5iiJUxmNMAE2/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyH6RMHBaB-9LfReGZSP1nZzpUACuxLkkmLmvC-dW8xVKtwIt71KbUbPCvHkSHeM4QyMw/exec';
 
 let DATA = null;
 
@@ -231,7 +279,17 @@ async function loadData(forceFresh=false){
   try{
     const freshParam = forceFresh ? '&fresh=1' : '';
     // จังหวะที่ 1: ดึงแค่รายชื่อสาขา (เบา ไม่ต้องรอประมวลผลข้อมูลหนักทั้งหมด)
-    const listRes = await fetch(APPS_SCRIPT_URL + '?list=1' + freshParam);
+    const listController = new AbortController();
+    const listTimeoutId = setTimeout(()=>listController.abort(), 20000);
+    let listRes;
+    try{
+      listRes = await fetch(APPS_SCRIPT_URL + '?list=1' + freshParam, {signal: listController.signal});
+    } catch(err){
+      if(err.name === 'AbortError') throw new Error('เซิร์ฟเวอร์ตอบช้าเกิน 20 วินาที ลองรีเฟรชใหม่');
+      throw err;
+    } finally {
+      clearTimeout(listTimeoutId);
+    }
     if(!listRes.ok) throw new Error('HTTP ' + listRes.status);
     const listJson = await listRes.json();
     const branchNames = Object.keys(listJson.branch_labels || {});
@@ -259,11 +317,20 @@ async function loadData(forceFresh=false){
 
 async function loadBranchData(branchName, forceFresh=false){
   const freshParam = forceFresh ? '&fresh=1' : '';
-  const res = await fetch(APPS_SCRIPT_URL + '?branch=' + encodeURIComponent(branchName) + freshParam);
-  if(!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
-  Object.assign(DATA.branches, json.branches);
-  return json.generated_at;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(()=>controller.abort(), 20000);
+  try{
+    const res = await fetch(APPS_SCRIPT_URL + '?branch=' + encodeURIComponent(branchName) + freshParam, {signal: controller.signal});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    Object.assign(DATA.branches, json.branches);
+    return json.generated_at;
+  } catch(err){
+    if(err.name === 'AbortError') throw new Error('เซิร์ฟเวอร์ตอบช้าเกิน 20 วินาที ลองใหม่อีกครั้ง');
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 document.getElementById('refreshBtn').addEventListener('click', async ()=>{
@@ -290,6 +357,7 @@ function initBranchSelector(branchNames, keepBranch=null){
   branchSelect.value = currentBranch;
   branchSelect.addEventListener('change', async e=>{
     const selected = e.target.value;
+    const previousBranch = currentBranch;
     currentBranch = selected;
     if(!DATA.branches[selected]){
       branchSelect.disabled = true;
@@ -298,7 +366,10 @@ function initBranchSelector(branchNames, keepBranch=null){
         showLastUpdated(genAt);
       }catch(err){
         console.error(err);
+        currentBranch = previousBranch;
+        branchSelect.value = previousBranch;
         branchSelect.disabled = false;
+        alert('โหลดข้อมูลสาขานี้ไม่สำเร็จ: ' + err.message);
         return;
       }
       branchSelect.disabled = false;
@@ -633,8 +704,46 @@ function renderMonthSelect(){
   renderLostTable(lastMonth);
 }
 
+function renderStockStatus(m){
+  const data = B();
+  const status = data.stock_status;
+  const byMonth = (status.by_month[m]) || { no_count: [], good: [] };
+
+  const noCountBody = document.getElementById('noCountBody');
+  noCountBody.innerHTML = byMonth.no_count.length
+    ? byMonth.no_count.map(it=>`<tr><td>${it}</td></tr>`).join('')
+    : `<tr><td class="muted">ไม่มีรายการ</td></tr>`;
+
+  const goodRows = byMonth.good.slice().sort((a,b)=> Math.abs(a.lostqty) - Math.abs(b.lostqty));
+  const goodStockBody = document.getElementById('goodStockBody');
+  goodStockBody.innerHTML = goodRows.length
+    ? goodRows.map(r=>`<tr><td>${r.item}</td><td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td><td>${fmt(r.lostvalue)}</td></tr>`).join('')
+    : `<tr><td class="muted" colspan="3">ไม่มีรายการ</td></tr>`;
+
+  const neverPurchasedBody = document.getElementById('neverPurchasedBody');
+  neverPurchasedBody.innerHTML = status.never_purchased.length
+    ? status.never_purchased.map(it=>`<tr><td>${it}</td></tr>`).join('')
+    : `<tr><td class="muted">ไม่มีรายการ</td></tr>`;
+}
+
+function renderStockStatusMonthSelect(){
+  const data = B();
+  const sel = document.getElementById('stockStatusMonthSelect');
+  sel.innerHTML = '';
+  data.months.forEach(m=>{
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = data.month_names[m];
+    sel.appendChild(opt);
+  });
+  sel.onchange = e=>renderStockStatus(Number(e.target.value));
+  const lastMonth = data.months[data.months.length-2] || data.months[data.months.length-1];
+  sel.value = lastMonth;
+  renderStockStatus(lastMonth);
+}
+
 function renderAll(){
   renderOverview();
+  renderStockStatusMonthSelect();
   renderPairSelect();
   renderMonthSelect();
 }
