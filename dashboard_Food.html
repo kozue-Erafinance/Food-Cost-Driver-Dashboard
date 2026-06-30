@@ -64,6 +64,11 @@
   tbody tr:hover{background:#FAF4EF;}
   .tbl-scroll{overflow-x:auto;border-radius:8px;}
 
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--ink);}
+  th.sortable .arrow{font-size:9px;margin-left:3px;opacity:.5;}
+  th.sortable.sort-asc .arrow, th.sortable.sort-desc .arrow{opacity:1;color:var(--pink);}
+
   .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
   .tag.price{background:var(--red-pale);color:var(--red);}
   .tag.qty{background:var(--amber-pale);color:var(--amber);}
@@ -115,6 +120,13 @@
     display:flex; align-items:center; justify-content:center;
     min-height:200px; font-size:14px; color:var(--ink-soft);
   }
+
+  .global-filters{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    max-width:1280px; margin:0 auto 14px; padding:10px 24px;
+  }
+  .global-filters .gf-group{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;}
+  .global-filters label{font-size:12px;color:var(--ink-soft);font-weight:700;}
 </style>
 </head>
 <body>
@@ -135,6 +147,24 @@
   <div class="refresh-row">
     <span id="lastUpdated" class="muted" style="font-size:12px;"></span>
     <button id="refreshBtn" class="refresh-btn">🔄 ดึงข้อมูลล่าสุด</button>
+  </div>
+
+  <div class="global-filters">
+    <div class="gf-group">
+      <label for="categoryFilter">หมวดหมู่</label>
+      <select id="categoryFilter">
+        <option value="ALL">ทั้งหมด</option>
+        <option value="เนื้อสัตว์หลัก">เนื้อสัตว์หลัก (หมู เนื้อวัว ไก่ เป็ด)</option>
+        <option value="ทะเล">ทะเล (ปลา)</option>
+        <option value="ของป่าและอื่นๆ">ของป่าและอื่นๆ</option>
+      </select>
+    </div>
+    <div class="gf-group">
+      <label for="excludeNonFoodToggle">
+        <input type="checkbox" id="excludeNonFoodToggle" checked style="margin-right:5px;vertical-align:middle;">
+        ไม่นับวาซาบิดอง/น้ำมะนาว/มะนาวลูก/น้ำตาลมะพร้าว
+      </label>
+    </div>
   </div>
 
   <div id="loadingOverlay">กำลังโหลดข้อมูลล่าสุดจาก Google Sheet...</div>
@@ -213,13 +243,14 @@
       <table id="lostTable">
         <thead>
           <tr>
-            <th>วัตถุดิบ</th>
-            <th>ราคา/หน่วย</th>
-            <th>ปริมาณหาย (Lost)</th>
-            <th>มูลค่าหาย (บาท)</th>
-            <th>ต้นทุนตามสต็อก</th>
-            <th>ต้นทุนตามสูตร</th>
-            <th>%var (pp)</th>
+            <th class="sortable" data-key="item" data-type="text">วัตถุดิบ<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="price" data-type="num">ราคา/หน่วย<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="qtyformula" data-type="num">ขายออก-POS<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="lostqty" data-type="num">ปริมาณหาย (Lost)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="lostvalue" data-type="num">มูลค่าหาย (บาท)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="stockcost" data-type="num">ต้นทุนตามสต็อก<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="formulacost" data-type="num">ต้นทุนตามสูตร<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="pctvar" data-type="num">%var (pp)<span class="arrow">▾</span></th>
           </tr>
         </thead>
         <tbody id="lostBody"></tbody>
@@ -240,16 +271,16 @@
       <table id="driverTable">
         <thead>
           <tr>
-            <th>วัตถุดิบ</th>
-            <th>ราคา/หน่วย (ก่อน)</th>
-            <th>ราคา/หน่วย (หลัง)</th>
-            <th>Δ ราคา</th>
-            <th>ปริมาณใช้ (ก่อน)</th>
-            <th>ปริมาณใช้ (หลัง)</th>
-            <th>Δ ต้นทุน (บาท)</th>
-            <th>ผลจากราคา</th>
-            <th>ผลจากปริมาณ</th>
-            <th>สาเหตุหลัก</th>
+            <th class="sortable" data-key="item" data-type="text">วัตถุดิบ<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="price_prev" data-type="num">ราคา/หน่วย (ก่อน)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="price_now" data-type="num">ราคา/หน่วย (หลัง)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="price_change" data-type="num">Δ ราคา<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="qty_prev" data-type="num">ปริมาณใช้ (ก่อน)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="qty_now" data-type="num">ปริมาณใช้ (หลัง)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="delta_cost" data-type="num">Δ ต้นทุน (บาท)<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="price_effect" data-type="num">ผลจากราคา<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="qty_effect" data-type="num">ผลจากปริมาณ<span class="arrow">▾</span></th>
+            <th class="sortable" data-key="driver_label" data-type="text">สาเหตุหลัก<span class="arrow">▾</span></th>
           </tr>
         </thead>
         <tbody id="driverBody"></tbody>
@@ -263,9 +294,44 @@
 
 <script>
 // ==== แก้ไขตรงนี้: ใส่ URL ของ Apps Script Web App ที่ deploy ไว้ ====
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyH6RMHBaB-9LfReGZSP1nZzpUACuxLkkmLmvC-dW8xVKtwIt71KbUbPCvHkSHeM4QyMw/exec?kind=bev';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyH6RMHBaB-9LfReGZSP1nZzpUACuxLkkmLmvC-dW8xVKtwIt71KbUbPCvHkSHeM4QyMw/exec';
 
 let DATA = null;
+
+// ===== หมวดหมู่วัตถุดิบ (เดารายชื่อจาก master list 42 รายการที่ใช้กันมา) =====
+const CATEGORY_MAP = {
+  'เนื้อสัตว์หลัก': ['ลิ้นวัว','เสือร้องไห้','Frank','Skirt','โจ คารุบิ','เนื้อสันใน','ใบพาย','สุรินทร์วากิว',
+    'เนื้อยุกเกะ','เนื้อชาบู','เนื้อยากินิกุ','สันคอหมูแท่ง','สันนอกหมูแท่ง','ตับหมู','คอหมู','กระดูกอ่อน',
+    'ไส้หมู','หมูสามชั้น','ตับไก่','หัวใจไก่','สะโพกไก่','ไก่ต้นหอม','เป็ดบด'],
+  'ทะเล': ['ปลาซาบะดอง','ไข่ปลาช่อน','ปลาเทโพ','ปลาทับทิม','ปลาคัง','ปลาบู่','ปลานิล','ปลาดุก',
+    'ปลาแซลมอน','ปลาทูน่า','ปลายลิ้นวัว','หอยเชลล์','หอยนางรมณ์','หอยนางรมณ์โปงลาง','หอยนา',
+    'แมงกระพรุน','ปูนา','อ่องมันปู'],
+};
+function getCategory(item){
+  for(const cat of Object.keys(CATEGORY_MAP)){
+    if(CATEGORY_MAP[cat].includes(item)) return cat;
+  }
+  return 'ของป่าและอื่นๆ';
+}
+const EXCLUDED_NON_FOOD_ITEMS = ['วาซาบิดอง','น้ำมะนาว','มะนาวลูก','น้ำตาลมะพร้าว'];
+
+let currentCategory = 'ALL';
+let excludeNonFood = true;
+
+function itemPassesFilter(itemName){
+  if(excludeNonFood && EXCLUDED_NON_FOOD_ITEMS.includes(itemName)) return false;
+  if(currentCategory !== 'ALL' && getCategory(itemName) !== currentCategory) return false;
+  return true;
+}
+
+document.getElementById('categoryFilter').addEventListener('change', e=>{
+  currentCategory = e.target.value;
+  if(DATA) renderAll();
+});
+document.getElementById('excludeNonFoodToggle').addEventListener('change', e=>{
+  excludeNonFood = e.target.checked;
+  if(DATA) renderAll();
+});
 
 function showLastUpdated(iso){
   const el = document.getElementById('lastUpdated');
@@ -402,6 +468,48 @@ function classifyDriver(row){
 let trendChartInstance = null;
 let varianceChartInstance = null;
 
+// ===== Sortable table helper =====
+// state: { key, dir } เก็บแยกตาม table id
+const sortState = {};
+function makeSortable(tableId, rows, renderRowFn, defaultSortKey, defaultDir='desc'){
+  if(!sortState[tableId]) sortState[tableId] = { key: defaultSortKey, dir: defaultDir };
+  const state = sortState[tableId];
+  const table = document.getElementById(tableId);
+  const ths = table.querySelectorAll('th.sortable');
+
+  function applySort(){
+    const sorted = rows.slice().sort((a,b)=>{
+      let va = a[state.key], vb = b[state.key];
+      if(typeof va === 'string' || typeof vb === 'string'){
+        va = (va||'').toString(); vb = (vb||'').toString();
+        return state.dir==='asc' ? va.localeCompare(vb,'th') : vb.localeCompare(va,'th');
+      }
+      va = (va===null||va===undefined||isNaN(va)) ? -Infinity : va;
+      vb = (vb===null||vb===undefined||isNaN(vb)) ? -Infinity : vb;
+      return state.dir==='asc' ? va-vb : vb-va;
+    });
+    renderRowFn(sorted);
+    ths.forEach(th=>{
+      th.classList.remove('sort-asc','sort-desc');
+      if(th.dataset.key === state.key) th.classList.add(state.dir==='asc' ? 'sort-asc' : 'sort-desc');
+    });
+  }
+
+  ths.forEach(th=>{
+    th.onclick = ()=>{
+      if(state.key === th.dataset.key){
+        state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.key = th.dataset.key;
+        state.dir = th.dataset.type === 'text' ? 'asc' : 'desc';
+      }
+      applySort();
+    };
+  });
+
+  applySort();
+}
+
 // Lightweight inline point-label plugin (no external library) - draws the value above each point
 function makePointLabelPlugin(opts){
   const fmtFn = opts && opts.format ? opts.format : (v => v.toFixed(1)+'%');
@@ -420,7 +528,6 @@ function makePointLabelPlugin(opts){
           ctx.fillStyle = dataset.borderColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
-          // alternate label position slightly when multiple datasets to reduce overlap
           const yOffset = dsIndex === 0 ? 7 : 16;
           ctx.fillText(fmtFn(value), point.x, point.y - yOffset);
           ctx.restore();
@@ -430,9 +537,31 @@ function makePointLabelPlugin(opts){
   };
 }
 
+// ===== คำนวณ monthly_summary ใหม่ตามฟิลเตอร์หมวด/non-food (ใช้แทน data.monthly_summary ดิบ) =====
+function computeFilteredMonthlySummary(){
+  const data = B();
+  const itemTable = data.item_table.filter(r=>itemPassesFilter(r.item));
+  return data.months.map(m=>{
+    let stock_cost=0, formula_cost=0, lost_value=0, missingCount=0, totalCount=0;
+    itemTable.forEach(r=>{
+      totalCount++;
+      formula_cost += r['formulacost_'+m] || 0;
+      stock_cost += r['stockcost_'+m] || 0;
+      lost_value += Math.max(r['lostvalue_'+m] || 0, 0);
+      if(r['incomplete_'+m]) missingCount++;
+    });
+    const sales = (data.monthly_summary.find(s=>s.Month===m)||{}).sales || 1;
+    const formula_pct = formula_cost / sales * 100;
+    const warned = totalCount>0 && (missingCount/totalCount) > 0.5;
+    const stock_pct = warned ? 0 : (stock_cost/sales*100);
+    const pp_gap = warned ? 0 : (stock_pct - formula_pct);
+    return { Month:m, stock_cost, formula_cost, lost_value, sales, stock_pct, formula_pct, pp_gap, warned };
+  });
+}
+
 function renderOverview(){
   const data = B();
-  const ms = data.monthly_summary;
+  const ms = computeFilteredMonthlySummary();
   const monthNames = data.month_names;
   const kpiRow = document.getElementById('kpiRow');
   const kpiMonthSelect = document.getElementById('kpiMonthSelect');
@@ -509,7 +638,8 @@ function renderOverview(){
 
   document.getElementById('overviewNote').innerHTML =
     `เส้น <b>ต้นทุนตามสต็อก</b> (ชอมพู) คือของที่หักออกจากสต็อกจริง ส่วน <b>ต้นทุนตามสูตร</b> (ส้ม) คือของที่สูตรเมนูบอกว่าควรใช้ — ช่องว่างระหว่างสองเส้นคือของที่ "หายเกินสูตร" ทุกเดือน<br>
-     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ`;
+     เดือนล่าสุดที่อยู่ในกราฟ อาจยังไม่ปิดเดือน (ไม่มียอดปลายเดือนครบทุกรายการ) ตัวเลขอาจสูงผิดปกติ อย่าเปรียบเทียบกับเดือนอื่นจนกว่าจะปิดสต็อกครบ<br>
+     กราฟนี้คำนวณตามฟิลเตอร์หมวดหมู่/รายการที่เลือกด้านบน`;
   if(varianceChartInstance) varianceChartInstance.destroy();
   varianceChartInstance = new Chart(document.getElementById('varianceChart'), {
     type:'line',
@@ -547,7 +677,11 @@ function renderOverview(){
 
 function renderPair(pairKey){
   const data = B();
-  const rows = data.decomp_by_pair[pairKey].slice().sort((a,b)=> Math.abs(b.delta_cost) - Math.abs(a.delta_cost));
+  const rows = data.decomp_by_pair[pairKey].filter(r=>itemPassesFilter(r.item))
+    .map(r=>{
+      const driver = classifyDriver(r);
+      return Object.assign({}, r, { driver_label: driver.label, driver_cls: driver.cls });
+    });
   const incompleteCount = rows.filter(r=>r.incomplete).length;
   const totalDelta = rows.reduce((s,r)=>s+r.delta_cost,0);
   const totalPriceEffect = rows.reduce((s,r)=>s+r.price_effect,0);
@@ -577,26 +711,29 @@ function renderPair(pairKey){
     pairWarning.style.display = 'none';
   }
 
-  const tbody = document.getElementById('driverBody');
-  tbody.innerHTML = '';
-  rows.forEach(r=>{
-    const driver = classifyDriver(r);
-    const tr = document.createElement('tr');
-    if(r.incomplete) tr.className = 'incomplete-row';
-    tr.innerHTML = `
-      <td>${r.incomplete ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่ง (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>' : ''}${r.item}</td>
-      <td>${fmt(r.price_prev)}</td>
-      <td>${fmt(r.price_now)}</td>
-      <td class="${signClass(r.price_change)}">${signed(r.price_change)}</td>
-      <td>${fmt(r.qty_prev,1)}</td>
-      <td>${fmt(r.qty_now,1)}</td>
-      <td class="${signClass(r.delta_cost)}">${signed(r.delta_cost)}</td>
-      <td class="${signClass(r.price_effect)}">${signed(r.price_effect)}</td>
-      <td class="${signClass(r.qty_effect)}">${signed(r.qty_effect)}</td>
-      <td><span class="tag ${driver.cls}">${driver.label}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
+  function renderRows(sortedRows){
+    const tbody = document.getElementById('driverBody');
+    tbody.innerHTML = '';
+    sortedRows.forEach(r=>{
+      const tr = document.createElement('tr');
+      if(r.incomplete) tr.className = 'incomplete-row';
+      tr.innerHTML = `
+        <td>${r.incomplete ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือนในเดือนใดเดือนหนึ่ง (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>' : ''}${r.item}</td>
+        <td>${fmt(r.price_prev)}</td>
+        <td>${fmt(r.price_now)}</td>
+        <td class="${signClass(r.price_change)}">${signed(r.price_change)}</td>
+        <td>${fmt(r.qty_prev,1)}</td>
+        <td>${fmt(r.qty_now,1)}</td>
+        <td class="${signClass(r.delta_cost)}">${signed(r.delta_cost)}</td>
+        <td class="${signClass(r.price_effect)}">${signed(r.price_effect)}</td>
+        <td class="${signClass(r.qty_effect)}">${signed(r.qty_effect)}</td>
+        <td><span class="tag ${r.driver_cls}">${r.driver_label}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  makeSortable('driverTable', rows, renderRows, 'delta_cost', 'desc');
 
   const topQty = rows.filter(r=>r.delta_cost>0).sort((a,b)=>b.qty_effect-a.qty_effect).slice(0,3).map(r=>r.item).join(', ');
   const priceUpCount = rows.filter(r=>r.price_change>0).length;
@@ -627,27 +764,26 @@ function renderPairSelect(){
 }
 
 function isAnomalous(stockcost, formulacost){
-  // ผิดปกติถ้าต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า (อาจเกิดจากนับสต็อกผิด/คีย์ข้อมูลผิด)
   const s = Math.abs(stockcost||0), f = Math.abs(formulacost||0);
-  if (f < 50 && s < 50) return false; // มูลค่าเล็กน้อยเกินไป ไม่ต้องเตือน
-  if (f === 0) return s > 500; // ไม่มีสูตรอ้างอิงเลยแต่ใช้สต็อกไปมาก
+  if (f < 50 && s < 50) return false;
+  if (f === 0) return s > 500;
   const ratio = s / f;
   return ratio > 2 || ratio < 0.5;
 }
 
 function renderLostTable(m){
   const data = B();
-  const rows = data.item_table.map(r=>({
+  const rows = data.item_table.filter(r=>itemPassesFilter(r.item)).map(r=>({
     item: r.item,
     price: r['price_'+m],
+    qtyformula: r['qtyformula_'+m],
     lostqty: r['lostqty_'+m],
     lostvalue: r['lostvalue_'+m],
     stockcost: r['stockcost_'+m],
     formulacost: r['formulacost_'+m],
     pctvar: r['pctvar_'+m],
     incomplete: r['incomplete_'+m]
-  })).map(r=>({...r, anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost)}))
-    .sort((a,b)=> (b.lostvalue||0) - (a.lostvalue||0));
+  })).map(r=>Object.assign({}, r, { anomalous: !r.incomplete && isAnomalous(r.stockcost, r.formulacost) }));
 
   const flaggedItems = rows.filter(r=>r.anomalous);
   const incompleteItems = rows.filter(r=>r.incomplete);
@@ -667,26 +803,31 @@ function renderLostTable(m){
     banner.style.display = 'none';
   }
 
-  const tbody = document.getElementById('lostBody');
-  tbody.innerHTML = '';
-  rows.forEach(r=>{
-    const tr = document.createElement('tr');
-    if(r.incomplete) tr.className = 'incomplete-row';
-    else if(r.anomalous) tr.className = 'flagged';
-    const icon = r.incomplete
-      ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือน (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>'
-      : (r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : '');
-    tr.innerHTML = `
-      <td>${icon}${r.item}</td>
-      <td>${fmt(r.price)}</td>
-      <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
-      <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
-      <td>${fmt(r.stockcost)}</td>
-      <td>${fmt(r.formulacost)}</td>
-      <td class="${signClass(r.pctvar)}">${signed(r.pctvar,2)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  function renderRows(sortedRows){
+    const tbody = document.getElementById('lostBody');
+    tbody.innerHTML = '';
+    sortedRows.forEach(r=>{
+      const tr = document.createElement('tr');
+      if(r.incomplete) tr.className = 'incomplete-row';
+      else if(r.anomalous) tr.className = 'flagged';
+      const icon = r.incomplete
+        ? '<span class="flag-icon" title="มีช่องว่างต้นเดือน/ปลายเดือน (นับเป็น 0) — ลองเช็คว่าตั้งใจหรือลืมกรอก">ℹ️</span>'
+        : (r.anomalous ? '<span class="flag-icon" title="ต้นทุนตามสต็อกกับตามสูตรต่างกันเกิน 2 เท่า — ลองเช็คการนับสต็อก">⚠️</span>' : '');
+      tr.innerHTML = `
+        <td>${icon}${r.item}</td>
+        <td>${fmt(r.price)}</td>
+        <td>${fmt(r.qtyformula,1)}</td>
+        <td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td>
+        <td class="${r.lostvalue>0?'pos':'muted'}">${fmt(r.lostvalue)}</td>
+        <td>${fmt(r.stockcost)}</td>
+        <td>${fmt(r.formulacost)}</td>
+        <td class="${signClass(r.pctvar)}">${signed(r.pctvar,2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  makeSortable('lostTable', rows, renderRows, 'lostvalue', 'desc');
 }
 
 function renderMonthSelect(){
@@ -709,20 +850,22 @@ function renderStockStatus(m){
   const status = data.stock_status;
   const byMonth = (status.by_month[m]) || { no_count: [], good: [] };
 
+  const noCountList = byMonth.no_count.filter(it=>itemPassesFilter(it));
   const noCountBody = document.getElementById('noCountBody');
-  noCountBody.innerHTML = byMonth.no_count.length
-    ? byMonth.no_count.map(it=>`<tr><td>${it}</td></tr>`).join('')
+  noCountBody.innerHTML = noCountList.length
+    ? noCountList.map(it=>`<tr><td>${it}</td></tr>`).join('')
     : `<tr><td class="muted">ไม่มีรายการ</td></tr>`;
 
-  const goodRows = byMonth.good.slice().sort((a,b)=> Math.abs(a.lostqty) - Math.abs(b.lostqty));
+  const goodRows = byMonth.good.filter(r=>itemPassesFilter(r.item)).slice().sort((a,b)=> Math.abs(a.lostqty) - Math.abs(b.lostqty));
   const goodStockBody = document.getElementById('goodStockBody');
   goodStockBody.innerHTML = goodRows.length
     ? goodRows.map(r=>`<tr><td>${r.item}</td><td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td><td>${fmt(r.lostvalue)}</td></tr>`).join('')
     : `<tr><td class="muted" colspan="3">ไม่มีรายการ</td></tr>`;
 
+  const neverPurchasedList = status.never_purchased.filter(it=>itemPassesFilter(it));
   const neverPurchasedBody = document.getElementById('neverPurchasedBody');
-  neverPurchasedBody.innerHTML = status.never_purchased.length
-    ? status.never_purchased.map(it=>`<tr><td>${it}</td></tr>`).join('')
+  neverPurchasedBody.innerHTML = neverPurchasedList.length
+    ? neverPurchasedList.map(it=>`<tr><td>${it}</td></tr>`).join('')
     : `<tr><td class="muted">ไม่มีรายการ</td></tr>`;
 }
 
