@@ -209,9 +209,10 @@
         </div>
       </div>
       <div class="status-col">
-        <h3 class="chart-title">2. รายการที่สต็อกดี (ของหายไม่เกิน ±5 หน่วย)</h3>
-        <p class="status-desc">มีข้อมูลต้นเดือน-1 และปลายเดือนครบ และของหายอยู่ในช่วง ±5 หน่วย — ถือว่านับสต็อกแม่นยำ ควบคุมได้ดี</p>
-        <div class="tbl-scroll">
+        <h3 class="chart-title">2. รายการสต็อก Error (Lost (+หาย) ติดลบ)</h3>
+        <p class="status-desc">
+            แสดงรายการที่ Lost ติดลบ (Lost &lt; 0) ซึ่งหมายถึงของในสต็อกมีมากกว่าที่ระบบคำนวณไว้
+            อาจเกิดจากการนับสต็อกผิด การรับสินค้าเกิน หรือมีการคีย์ข้อมูลไม่ครบ ควรตรวจสอบรายการเหล่านี้ </p>
           <table id="goodStockTable">
             <thead><tr><th>วัตถุดิบ</th><th>ปริมาณหาย (Lost)</th><th>มูลค่าหาย (บาท)</th></tr></thead>
             <tbody id="goodStockBody"></tbody>
@@ -903,12 +904,27 @@ function renderStockStatus(m){
     ? noCountList.map(it=>`<tr><td>${it}</td></tr>`).join('')
     : `<tr><td class="muted">ไม่มีรายการ</td></tr>`;
 
-  const goodRows = byMonth.good.filter(r=>itemPassesFilter(r.item)).slice().sort((a,b)=> Math.abs(a.lostqty) - Math.abs(b.lostqty));
-  const goodStockBody = document.getElementById('goodStockBody');
-  goodStockBody.innerHTML = goodRows.length
-    ? goodRows.map(r=>`<tr><td>${r.item}</td><td class="${signClass(r.lostqty)}">${signed(r.lostqty,1)}</td><td>${fmt(r.lostvalue)}</td></tr>`).join('')
-    : `<tr><td class="muted" colspan="3">ไม่มีรายการ</td></tr>`;
+  // แสดงเฉพาะ Lost ติดลบ (Stock Error)
+const errorRows = data.item_table
+  .filter(r=>itemPassesFilter(r.item))
+  .map(r=>({
+      item: r.item,
+      lostqty: r['lostqty_'+m],
+      lostvalue: r['lostvalue_'+m]
+  }))
+  .filter(r => r.lostqty < 0)
+  .sort((a,b)=>a.lostqty-b.lostqty);
 
+const goodStockBody = document.getElementById('goodStockBody');
+goodStockBody.innerHTML = errorRows.length
+  ? errorRows.map(r=>`
+      <tr>
+        <td>${r.item}</td>
+        <td class="neg">${signed(r.lostqty,1)}</td>
+        <td>${fmt(r.lostvalue)}</td>
+      </tr>
+    `).join('')
+  : `<tr><td class="muted" colspan="3">ไม่มีรายการ</td></tr>`;
   const neverPurchasedList = status.never_purchased.filter(it=>itemPassesFilter(it));
   const neverPurchasedBody = document.getElementById('neverPurchasedBody');
   neverPurchasedBody.innerHTML = neverPurchasedList.length
