@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <title>Food Cost Driver Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<style>
   :root{
     --bg:#FAF7F2; --panel:#FFFFFF; --ink:#2A1B22; --ink-soft:#6B5A62;
     --pink:#993556; --pink-soft:#ED93B1; --pink-pale:#FBE3EC;
@@ -129,22 +128,6 @@
   .global-filters .gf-group{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;}
   .global-filters label{font-size:12px;color:var(--ink-soft);font-weight:700;}
 </style>
-  .ts-wrapper{
-    min-width:340px;
-}
-
-.ts-control{
-    min-height:42px;
-    border-radius:8px;
-}
-
-.ts-dropdown{
-    border-radius:8px;
-}
-
-.ts-control input{
-    font-family:inherit;
-}
 </head>
 <body>
 <div class="wrap">
@@ -259,23 +242,8 @@
     สินค้า:
   </span>
 
-  <div style="display:flex;flex-direction:column;gap:6px;min-width:340px;">
-
-    <div style="display:flex;gap:8px;">
-
-        <button id="selectAllItems" class="refresh-btn">
-            เลือกทั้งหมด
-        </button>
-
-        <button id="clearItems" class="refresh-btn">
-            ล้างทั้งหมด
-        </button>
-
-    </div>
-
-    <select id="itemFilter" multiple></select>
-
-</div>
+  <select id="itemFilter" multiple size="6" style="min-width:260px;">
+  </select>
 </div>
     <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
     <div class="tbl-scroll">
@@ -893,71 +861,35 @@ function renderMonthSelect(){
   monthSelect.value = lastMonth;
   renderLostTable(lastMonth);
 }
-let selectedItems = [];
-let itemSelect = null;
-
 function initItemFilter(){
 
-    const sel=document.getElementById("itemFilter");
+  const sel = document.getElementById("itemFilter");
 
-    const items=[...new Set(
-        B().item_table
-        .filter(r=>itemPassesFilter(r.item))
-        .map(r=>r.item)
-    )].sort((a,b)=>a.localeCompare(b,'th'));
+  const items = [...new Set(
+      B().item_table
+      .filter(r=>itemPassesFilter(r.item))
+      .map(r=>r.item)
+  )].sort((a,b)=>a.localeCompare(b,'th'));
 
-    if(itemSelect){
-        itemSelect.destroy();
-    }
+  sel.innerHTML = "";
 
-    sel.innerHTML="";
+  items.forEach(item=>{
+      const op = document.createElement("option");
+      op.value = item;
+      op.textContent = item;
+      sel.appendChild(op);
+  });
 
-    items.forEach(item=>{
+  selectedItems = [];
 
-        const op=document.createElement("option");
+  sel.onchange = ()=>{
+      selectedItems =
+          [...sel.selectedOptions].map(x=>x.value);
 
-        op.value=item;
-        op.textContent=item;
-
-        sel.appendChild(op);
-
-    });
-
-    itemSelect=new TomSelect("#itemFilter",{
-
-        plugins:['remove_button'],
-
-        create:false,
-
-        hidePlaceholder:false,
-
-        placeholder:"🔍 พิมพ์ค้นหาสินค้า...",
-
-        maxOptions:500
-
-    });
-
-    itemSelect.on("change",values=>{
-
-        selectedItems=values||[];
-
-        renderLostTable(
-            Number(document.getElementById("monthSelect").value)
-        );
-
-    });
-
-    document.getElementById("selectAllItems").onclick=function(){
-
-        itemSelect.setValue(items);
-
-    };
-
-    document.getElementById("clearItems").onclick=function(){
-
-        itemSelect.clear();
-
-    };
+      renderLostTable(Number(
+          document.getElementById("monthSelect").value
+      ));
+  };
 
 }
 function renderStockStatus(m){
@@ -1007,8 +939,5 @@ function renderAll(){
   initItemFilter();
 }
 </script>
-
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-
 </body>
 </html>
