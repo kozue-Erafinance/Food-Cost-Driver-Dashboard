@@ -235,9 +235,16 @@
   <div class="panel">
     <h2><span class="num">3</span> รายการของหายรายเดือน (Lost ตามสต็อก)</h2>
     <div class="controls">
-      <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
-      <select id="monthSelect"></select>
-    </div>
+  <span class="muted" style="font-size:13px;font-weight:600;">เดือน:</span>
+  <select id="monthSelect"></select>
+
+  <span class="muted" style="font-size:13px;font-weight:600;margin-left:12px;">
+    สินค้า:
+  </span>
+
+  <select id="itemFilter" multiple size="6" style="min-width:260px;">
+  </select>
+</div>
     <div id="anomalyBanner" class="anomaly-banner" style="display:none;"></div>
     <div class="tbl-scroll">
       <table id="lostTable">
@@ -445,6 +452,7 @@ function initBranchSelector(branchNames, keepBranch=null){
 }
 
 let currentBranch = null;
+let selectedItems = [];
 function B(){ return DATA.branches[currentBranch]; }
 
 loadData();
@@ -773,7 +781,16 @@ function isAnomalous(stockcost, formulacost){
 
 function renderLostTable(m){
   const data = B();
-  const rows = data.item_table.filter(r=>itemPassesFilter(r.item)).map(r=>({
+  const rows = data.item_table
+    .filter(r=>itemPassesFilter(r.item))
+    .filter(r=>{
+
+        if(selectedItems.length===0)
+            return true;
+
+        return selectedItems.includes(r.item);
+
+    }).map(r=>({
     item: r.item,
     price: r['price_'+m],
     qtyformula: r['qtyformula_'+m],
@@ -844,7 +861,37 @@ function renderMonthSelect(){
   monthSelect.value = lastMonth;
   renderLostTable(lastMonth);
 }
+function initItemFilter(){
 
+  const sel = document.getElementById("itemFilter");
+
+  const items = [...new Set(
+      B().item_table
+      .filter(r=>itemPassesFilter(r.item))
+      .map(r=>r.item)
+  )].sort((a,b)=>a.localeCompare(b,'th'));
+
+  sel.innerHTML = "";
+
+  items.forEach(item=>{
+      const op = document.createElement("option");
+      op.value = item;
+      op.textContent = item;
+      sel.appendChild(op);
+  });
+
+  selectedItems = [];
+
+  sel.onchange = ()=>{
+      selectedItems =
+          [...sel.selectedOptions].map(x=>x.value);
+
+      renderLostTable(Number(
+          document.getElementById("monthSelect").value
+      ));
+  };
+
+}
 function renderStockStatus(m){
   const data = B();
   const status = data.stock_status;
@@ -889,6 +936,7 @@ function renderAll(){
   renderStockStatusMonthSelect();
   renderPairSelect();
   renderMonthSelect();
+  initItemFilter();
 }
 </script>
 </body>
